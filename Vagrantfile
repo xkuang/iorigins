@@ -88,6 +88,7 @@ Vagrant.configure(2) do |config|
     # config git
     git config --global user.email "ioana.chelu28@gmail.com"
     git config --global user.name "ioana chelu"
+    git config --global push.default matching
 
   SHELL
   #
