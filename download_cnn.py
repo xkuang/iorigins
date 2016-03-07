@@ -6,6 +6,9 @@ import os.path
 import re
 import sys
 import tarfile
+# import cv
+import cv2
+# import ipdb
 
 import numpy as np
 from six.moves import urllib
@@ -167,11 +170,37 @@ def maybe_download_and_extract():
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
 
+def preprocess_video():
+  video_path = "./media/mv89psg6zh4_33_46.avi"
+
+  cap = cv2.VideoCapture (video_path)
+
+  frame_count = 0
+  frame_list = []
+
+  while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+
+    if ret is False:
+        break
+    else:
+      print("ret is True")
+
+    frame_list.append(frame)
+    frame_count += 1
+
+  frame_list = np.array(frame_list)
+
+
+
 def main(_):
   maybe_download_and_extract()
-  image = (FLAGS.image_file if FLAGS.image_file else
-           os.path.join(FLAGS.model_dir, 'cropped_panda.jpg'))
-  run_inference_on_image(image)
+  preprocess_video()
+
+  # image = (FLAGS.image_file if FLAGS.image_file else
+  #          os.path.join(FLAGS.model_dir, 'cropped_panda.jpg'))
+  # run_inference_on_image(image)
 
 
 if __name__ == '__main__':
