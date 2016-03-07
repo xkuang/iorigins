@@ -17,7 +17,7 @@ def download_and_process_video(save_path, row):
     start = row['Start']
     end = row['End']
 
-    print video_id
+    # print video_id
 
     if os.path.exists('tmp.mp4'):
         os.system('rm tmp.mp4')
