@@ -9,6 +9,8 @@ import tarfile
 # import cv
 import cv2
 # import ipdb
+import skimage
+import pylab as plt
 
 import numpy as np
 from six.moves import urllib
@@ -31,6 +33,8 @@ tf.app.flags.DEFINE_string('image_file', '',
                            """Absolute path to image file.""")
 tf.app.flags.DEFINE_integer('num_top_predictions', 5,
                             """Display this many predictions.""")
+tf.app.flags.DEFINE_string('nr_frames', 80,
+                           """Nr of sample frames at equally-space intervals.""")
 
 DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
 
@@ -170,6 +174,30 @@ def maybe_download_and_extract():
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
 
+def preprocess_frame(image, target_height=299, target_width=299):
+  if len(image.shape) == 2:
+      image = np.tile(image[:,:,None], 3)
+  elif len(image.shape) == 4:
+      image = image[:,:,:,0]
+
+  # image = skimage.img_as_float(image).astype(np.float32)
+  height, width, rgb = image.shape
+  if width == height:
+    resized_image = cv2.resize(image, (target_height,target_width))
+
+  elif height < width:
+    resized_image = cv2.resize(image, (int(width * float(target_height)/height), target_width))
+    cropping_length = int((resized_image.shape[1] - target_height) / 2)
+    resized_image = resized_image[:,cropping_length:resized_image.shape[1] - cropping_length]
+
+  else:
+    resized_image = cv2.resize(image, (target_height, int(height * float(target_width) / width)))
+    cropping_length = int((resized_image.shape[0] - target_width) / 2)
+    resized_image = resized_image[cropping_length:resized_image.shape[0] - cropping_length,:]
+
+  return cv2.resize(resized_image, (target_height, target_width))
+
+
 def preprocess_video():
   video_path = "./media/mv89psg6zh4_33_46.avi"
 
@@ -184,14 +212,44 @@ def preprocess_video():
 
     if ret is False:
         break
-    else:
-      print("ret is True")
 
     frame_list.append(frame)
     frame_count += 1
 
   frame_list = np.array(frame_list)
 
+  if frame_count > 80:
+      frame_indices = np.linspace(0, frame_count, num=FLAGS.nr_frames, endpoint=False).astype(int)
+      frame_list = frame_list[frame_indices]
+
+  cropped_frame_list = np.array(map(lambda x: preprocess_frame(x), frame_list))
+
+  first_frame = cropped_frame_list[0]
+
+  create_graph()
+
+  with tf.Session() as sess:
+    image_data = tf.convert_to_tensor(first_frame, dtype=tf.float32).eval()
+    cv2.imshow('image', first_frame)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    image_data = np.reshape(image_data, [1, 299, 299, 3])
+    test_tensor = sess.graph.get_tensor_by_name('Mul:0')
+    print(test_tensor.get_shape())
+    softmax_tensor = sess.graph.get_tensor_by_name('softmax:0')
+    predictions = sess.run(softmax_tensor,
+                          {'Mul:0': image_data})
+
+    predictions = np.squeeze(predictions)
+
+    # Creates node ID --> English string lookup.
+    node_lookup = NodeLookup()
+
+    top_k = predictions.argsort()[-FLAGS.num_top_predictions:][::-1]
+    for node_id in top_k:
+      human_string = node_lookup.id_to_string(node_id)
+      score = predictions[node_id]
+      print('%s (score = %.5f)' % (human_string, score))
 
 
 def main(_):
