@@ -1,4 +1,4 @@
 pytube==6.0.2
+scikit-image==0.11.3
 scikit-video==0.1.2
 ipdb==0.9.0
-

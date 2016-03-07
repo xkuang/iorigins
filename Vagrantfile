@@ -37,7 +37,7 @@ Vagrant.configure(2) do |config|
   # the path on the host to the actual folder. The second argument is
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
-   config.vm.synced_folder "/Users/ioanaveronicachelu/PycharmProjects", "/home/vagrant/projects"
+   config.vm.synced_folder "/home/ioana/sample", "/home/vagrant/projects"
 
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
@@ -59,6 +59,7 @@ Vagrant.configure(2) do |config|
     conda create --name iorigins --clone root
     source activate iorigins
     echo "source activate iorigins" >> /home/vagrant/.bash_profile
+
     sudo pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.1-cp27-none-linux_x86_64.whl
 
     # caffe install - protobuf, opencv, leveldb
