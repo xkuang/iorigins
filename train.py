@@ -2,7 +2,8 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-from model import Video_Caption_Generator
+from model import Spatio_Temporal_Generator
+from utils import load_pkl
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('video_data_path', './data/video_corpus.csv',
@@ -21,10 +22,14 @@ tf.app.flags.DEFINE_string('dim_image', 4096,
                            """youtube features path""")
 tf.app.flags.DEFINE_string('dim_hidden', 256,
                            """youtube features path""")
-tf.app.flags.DEFINE_string('batch_size_train', 64,
+tf.app.flags.DEFINE_string('batch_size_train', 1,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
+tf.app.flags.DEFINE_string('nr_epochs', 1,
+                           """Nr of epochs to train.""")
+tf.app.flags.DEFINE_string('learning_rate', 0.001,
+                           """Model's learning rate.""")
 
 
 def get_video_data(train_ratio=0.9):
@@ -77,7 +82,7 @@ def create_vocab(captions, word_count_threshold=5): # borrowed this function fro
     return word_to_index, index_to_word, bias_init_vector
 
 
-def main(_):
+def train():
   train_data, _ = get_video_data()
   captions = train_data['Description'].values
   captions = map(lambda x: x.replace('.', ''), captions)
@@ -86,13 +91,39 @@ def main(_):
 
   np.save(FLAGS.index_to_word_dir, index_to_word)
 
-  model = Video_Caption_Generator(
-            dim_image=FLAGS.image_size,
+  model = Spatio_Temporal_Generator(
+            dim_image=FLAGS.dim_image,
             nr_words=len(word_to_index),
             dim_hidden=FLAGS.dim_hidden,
-            batch_size=FLAGS.batch_size_train,
+            batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
             bias_init_vector=bias_init_vector)
+
+  for epoch in range(FLAGS.nr_epochs):
+    print ("epoch %d", epoch)
+    index = list(train_data.index)
+    np.random.shuffle(index)
+    train_data = train_data.ix[index]
+
+    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
+    current_train_data = current_train_data.reset_index(drop=True)
+
+    for start, end in zip(
+        range(0, len(current_train_data), FLAGS.batch_size_train),
+        range(FLAGS.batch_size_train, len(current_train_data), FLAGS.batch_size_train)):
+
+      current_batch = current_train_data[start:end]
+      current_videos = current_batch['video_path'].values
+
+      # current_feats = np.zeros((FLAGS.batch_size_train, FLAGS.nr_frames, dim_image))
+      current_feats_vals = map(lambda vid: load_pkl(vid), current_videos)
+
+      video_feats = current_feats_vals[0]
+      print ("nr frames for vid id %s : %d" % (current_batch['VideoID'].values[0], len(video_feats)))
+      # current_video_masks = np.zeros((batch_size, n_frame_step))
+
+def main(_):
+  train()
 
 if __name__ == '__main__':
   tf.app.run()
