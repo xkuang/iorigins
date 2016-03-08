@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
+from model import Video_Caption_Generator
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('video_data_path', './data/video_corpus.csv',
@@ -12,6 +13,18 @@ tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
 
 tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
                            """youtube features path""")
+
+tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
+                           """index_to_word dictionary path""")
+
+tf.app.flags.DEFINE_string('dim_image', 4096,
+                           """youtube features path""")
+tf.app.flags.DEFINE_string('dim_hidden', 256,
+                           """youtube features path""")
+tf.app.flags.DEFINE_string('batch_size_train', 64,
+                           """Nr of batches""")
+tf.app.flags.DEFINE_string('nr_frames', 80,
+                           """Nr of sample frames at equally-space intervals.""")
 
 
 def get_video_data(train_ratio=0.9):
@@ -71,6 +84,15 @@ def main(_):
   captions = map(lambda x: x.replace(',', ''), captions)
   word_to_index, index_to_word, bias_init_vector = create_vocab(captions, word_count_threshold=10)
 
+  np.save(FLAGS.index_to_word_dir, index_to_word)
+
+  model = Video_Caption_Generator(
+            dim_image=FLAGS.image_size,
+            nr_words=len(word_to_index),
+            dim_hidden=FLAGS.dim_hidden,
+            batch_size=FLAGS.batch_size_train,
+            nr_frames=FLAGS.nr_frames,
+            bias_init_vector=bias_init_vector)
 
 if __name__ == '__main__':
   tf.app.run()
