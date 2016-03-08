@@ -1,4 +1,5 @@
 import numpy as np
+import cPickle
 
 def create_batches(dataset_size, batch_size):
   """Create batche. Outputs a list [b1, b2...bn], where bi is a list of indices.
@@ -22,3 +23,28 @@ def create_batches(dataset_size, batch_size):
       batch_indices = batch_indices + [np.asarray(indices[-leftover:])]
   batch_indices = [ind.tolist() for ind in batch_indices]
   return batch_indices
+
+def load_pkl(path):
+    """
+    Load a pickled file.
+
+    :param path: Path to the pickled file.
+
+    :return: The unpickled Python object.
+    """
+    f = open(path, 'rb')
+    try:
+        rval = cPickle.load(f)
+    finally:
+        f.close()
+    return rval
+
+def dump_pkl(obj, path):
+    """
+    Save a Python object into a pickle file.
+    """
+    f = open(path, 'wb')
+    try:
+        cPickle.dump(obj, f, protocol=cPickle.HIGHEST_PROTOCOL)
+    finally:
+        f.close()

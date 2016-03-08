@@ -5,7 +5,7 @@ import os
 from pytube import YouTube
 
 def main():
-  # source = pyglet.media.load('/home/ioana/sample/iorigins/media/_0nX-El-ySo_83_93.avi')
+  # source = pyglet.media.load('/media/ioana/Elements/media/_0nX-El-ySo_83_93.avi')
   source = pyglet.media.load('./bird.avi')
   frame1 = source.get_next_video_frame()
   frame2 = source.get_next_video_frame()

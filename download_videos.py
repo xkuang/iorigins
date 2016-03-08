@@ -6,6 +6,7 @@ import cv2
 import cv
 import os
 import ipdb
+import sys
 
 def download_and_process_video(save_path, row):
     video_id = row['VideoID']
@@ -17,7 +18,7 @@ def download_and_process_video(save_path, row):
     start = row['Start']
     end = row['End']
 
-    # print video_id
+    print video_id
 
     if os.path.exists('tmp.mp4'):
         os.system('rm tmp.mp4')
@@ -25,7 +26,7 @@ def download_and_process_video(save_path, row):
     try:
         youtube = YouTube("https://www.youtube.com/watch?v="+video_id)
     except:
-        print
+        print "Unexpected error:", sys.exc_info()[0]
         return
 
     youtube.set_filename('tmp')
@@ -60,7 +61,7 @@ def download_and_process_video(save_path, row):
 
 def main():
     video_data_path='./data/video_corpus.csv'
-    video_save_path = './media'
+    video_save_path = '/media/ioana/Elements/media'
 
     video_data = pd.read_csv(video_data_path, sep=',')
     video_data = video_data[video_data['Language'] == 'English']

@@ -5,19 +5,23 @@ import numpy as np
 import pandas as pd
 import skimage
 import tensorflow as tf
+from download_cnn import CNN
+from utils import dump_pkl
 
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
 
-tf.app.flags.DEFINE_string('videos_dir', '/Users/ioanaveronicachelu/PycharmProjects/iorigins/media',
+tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
                            """youtube clips path""")
 
-tf.app.flags.DEFINE_string('feats_dir', './feats',
+tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
                            """youtube features path""")
 
+
 def main():
+  cnn = CNN()
   videos = os.listdir(FLAGS.videos_dir)
   videos = filter(lambda x: x.endswith('avi'), videos)
 
@@ -44,8 +48,6 @@ def main():
 
       if ret is False:
           break
-      else:
-        print "ret is True"
 
       frame_list.append(frame)
       frame_count += 1
@@ -56,9 +58,11 @@ def main():
       frame_indices = np.linspace(0, frame_count, num=FLAGS.nr_frames, endpoint=False).astype(int)
       frame_list = frame_list[frame_indices]
 
-    # cropped_frame_list = np.array(map(lambda x: preprocess_frame(x), frame_list))
-    # feats = cnn.get_features(cropped_frame_list)
+    cropped_frame_list = np.array(map(lambda x: cnn.preprocess_frame(x), frame_list))
+    feats = cnn.get_features(cropped_frame_list)
 
+    save_full_path = os.path.join(FLAGS.feats_dir, video + '.pkl')
+    dump_pkl(feats, save_full_path)
 
 
 if __name__=="__main__":
