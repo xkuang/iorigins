@@ -48,13 +48,13 @@ class Action_Recognizer():
     for i, internal_state in internal_states:
       avg_pool = tf.nn.avg_pool(internal_state,
                                 ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
-                                strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool' + i)))
+                                strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool' + i))
       dropout = tf.nn.dropout(avg_pool, 0.5)
 
       with tf.variable_scope("softmax_linear" + i) as scope:
-        weights_soft = variable_with_weight_decay("weights", [ self.input_sizes[i][2], self.nr_classes],
+        weights_soft = self.variable_with_weight_decay("weights", [ self.input_sizes[i][2], self.nr_classes],
                                           stddev=0.07, wd=0.004)
-        biases_soft = variable_on_cpu("biases", [self.nr_classes],
+        biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
                                   tf.constant_initializer(0.1))
         softmax_linear = tf.nn.xw_plus_b(dropout, weights_soft, biases_soft, name=scope.name)
         output_embeds.append(softmax_linear)
