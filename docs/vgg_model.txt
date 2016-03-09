@@ -1,0 +1,553 @@
+/home/ioana/sample/iorigins/bin/python /home/ioana/utils/pycharm-5.0.4/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 40131 --file /home/ioana/sample/iorigins/preprocessing.py
+pydev debugger: process 4302 is connecting
+
+Connected to pydev debugger (build 143.1919)
+graph loaded from disk
+('Operation:', u'Placeholder')
+(u'Placeholder', 'Output ', u'Placeholder:0')
+
+
+('Operation:', u'import/images')
+(u'import/images', 'Output ', u'import/images:0')
+
+
+('Operation:', u'import/mul/y')
+(u'import/mul/y', 'Output ', u'import/mul/y:0')
+
+
+('Operation:', u'import/mul')
+(u'import/mul', 'Input ', u'Placeholder:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(3)]))
+(u'import/mul', 'Input ', u'import/mul/y:0', TensorShape([]))
+(u'import/mul', 'Output ', u'import/mul:0')
+
+
+('Operation:', u'import/split/split_dim')
+(u'import/split/split_dim', 'Output ', u'import/split/split_dim:0')
+
+
+('Operation:', u'import/split')
+(u'import/split', 'Input ', u'import/split/split_dim:0', TensorShape([]))
+(u'import/split', 'Input ', u'import/mul:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(3)]))
+(u'import/split', 'Output ', u'import/split:0')
+(u'import/split', 'Output ', u'import/split:1')
+(u'import/split', 'Output ', u'import/split:2')
+
+
+('Operation:', u'import/sub/y')
+(u'import/sub/y', 'Output ', u'import/sub/y:0')
+
+
+('Operation:', u'import/sub')
+(u'import/sub', 'Input ', u'import/split:2', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/sub', 'Input ', u'import/sub/y:0', TensorShape([]))
+(u'import/sub', 'Output ', u'import/sub:0')
+
+
+('Operation:', u'import/sub_1/y')
+(u'import/sub_1/y', 'Output ', u'import/sub_1/y:0')
+
+
+('Operation:', u'import/sub_1')
+(u'import/sub_1', 'Input ', u'import/split:1', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/sub_1', 'Input ', u'import/sub_1/y:0', TensorShape([]))
+(u'import/sub_1', 'Output ', u'import/sub_1:0')
+
+
+('Operation:', u'import/sub_2/y')
+(u'import/sub_2/y', 'Output ', u'import/sub_2/y:0')
+
+
+('Operation:', u'import/sub_2')
+(u'import/sub_2', 'Input ', u'import/split:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/sub_2', 'Input ', u'import/sub_2/y:0', TensorShape([]))
+(u'import/sub_2', 'Output ', u'import/sub_2:0')
+
+
+('Operation:', u'import/concat/concat_dim')
+(u'import/concat/concat_dim', 'Output ', u'import/concat/concat_dim:0')
+
+
+('Operation:', u'import/concat')
+(u'import/concat', 'Input ', u'import/concat/concat_dim:0', TensorShape([]))
+(u'import/concat', 'Input ', u'import/sub:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/concat', 'Input ', u'import/sub_1:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/concat', 'Input ', u'import/sub_2:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(1)]))
+(u'import/concat', 'Output ', u'import/concat:0')
+
+
+('Operation:', u'import/conv1_1/filter')
+(u'import/conv1_1/filter', 'Output ', u'import/conv1_1/filter:0')
+
+
+('Operation:', u'import/conv1_1/Conv2D')
+(u'import/conv1_1/Conv2D', 'Input ', u'import/concat:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(3)]))
+(u'import/conv1_1/Conv2D', 'Input ', u'import/conv1_1/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(3), Dimension(64)]))
+(u'import/conv1_1/Conv2D', 'Output ', u'import/conv1_1/Conv2D:0')
+
+
+('Operation:', u'import/conv1_1/bias')
+(u'import/conv1_1/bias', 'Output ', u'import/conv1_1/bias:0')
+
+
+('Operation:', u'import/conv1_1/BiasAdd')
+(u'import/conv1_1/BiasAdd', 'Input ', u'import/conv1_1/Conv2D:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/conv1_1/BiasAdd', 'Input ', u'import/conv1_1/bias:0', TensorShape([Dimension(64)]))
+(u'import/conv1_1/BiasAdd', 'Output ', u'import/conv1_1/BiasAdd:0')
+
+
+('Operation:', u'import/conv1_1/Relu')
+(u'import/conv1_1/Relu', 'Input ', u'import/conv1_1/BiasAdd:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/conv1_1/Relu', 'Output ', u'import/conv1_1/Relu:0')
+
+
+('Operation:', u'import/conv1_2/filter')
+(u'import/conv1_2/filter', 'Output ', u'import/conv1_2/filter:0')
+
+
+('Operation:', u'import/conv1_2/Conv2D')
+(u'import/conv1_2/Conv2D', 'Input ', u'import/conv1_1/Relu:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/conv1_2/Conv2D', 'Input ', u'import/conv1_2/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(64), Dimension(64)]))
+(u'import/conv1_2/Conv2D', 'Output ', u'import/conv1_2/Conv2D:0')
+
+
+('Operation:', u'import/conv1_2/bias')
+(u'import/conv1_2/bias', 'Output ', u'import/conv1_2/bias:0')
+
+
+('Operation:', u'import/conv1_2/BiasAdd')
+(u'import/conv1_2/BiasAdd', 'Input ', u'import/conv1_2/Conv2D:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/conv1_2/BiasAdd', 'Input ', u'import/conv1_2/bias:0', TensorShape([Dimension(64)]))
+(u'import/conv1_2/BiasAdd', 'Output ', u'import/conv1_2/BiasAdd:0')
+
+
+('Operation:', u'import/conv1_2/Relu')
+(u'import/conv1_2/Relu', 'Input ', u'import/conv1_2/BiasAdd:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/conv1_2/Relu', 'Output ', u'import/conv1_2/Relu:0')
+
+
+('Operation:', u'import/pool1')
+(u'import/pool1', 'Input ', u'import/conv1_2/Relu:0', TensorShape([Dimension(None), Dimension(224), Dimension(224), Dimension(64)]))
+(u'import/pool1', 'Output ', u'import/pool1:0')
+
+
+('Operation:', u'import/conv2_1/filter')
+(u'import/conv2_1/filter', 'Output ', u'import/conv2_1/filter:0')
+
+
+('Operation:', u'import/conv2_1/Conv2D')
+(u'import/conv2_1/Conv2D', 'Input ', u'import/pool1:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(64)]))
+(u'import/conv2_1/Conv2D', 'Input ', u'import/conv2_1/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(64), Dimension(128)]))
+(u'import/conv2_1/Conv2D', 'Output ', u'import/conv2_1/Conv2D:0')
+
+
+('Operation:', u'import/conv2_1/bias')
+(u'import/conv2_1/bias', 'Output ', u'import/conv2_1/bias:0')
+
+
+('Operation:', u'import/conv2_1/BiasAdd')
+(u'import/conv2_1/BiasAdd', 'Input ', u'import/conv2_1/Conv2D:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/conv2_1/BiasAdd', 'Input ', u'import/conv2_1/bias:0', TensorShape([Dimension(128)]))
+(u'import/conv2_1/BiasAdd', 'Output ', u'import/conv2_1/BiasAdd:0')
+
+
+('Operation:', u'import/conv2_1/Relu')
+(u'import/conv2_1/Relu', 'Input ', u'import/conv2_1/BiasAdd:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/conv2_1/Relu', 'Output ', u'import/conv2_1/Relu:0')
+
+
+('Operation:', u'import/conv2_2/filter')
+(u'import/conv2_2/filter', 'Output ', u'import/conv2_2/filter:0')
+
+
+('Operation:', u'import/conv2_2/Conv2D')
+(u'import/conv2_2/Conv2D', 'Input ', u'import/conv2_1/Relu:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/conv2_2/Conv2D', 'Input ', u'import/conv2_2/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(128), Dimension(128)]))
+(u'import/conv2_2/Conv2D', 'Output ', u'import/conv2_2/Conv2D:0')
+
+
+('Operation:', u'import/conv2_2/bias')
+(u'import/conv2_2/bias', 'Output ', u'import/conv2_2/bias:0')
+
+
+('Operation:', u'import/conv2_2/BiasAdd')
+(u'import/conv2_2/BiasAdd', 'Input ', u'import/conv2_2/Conv2D:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/conv2_2/BiasAdd', 'Input ', u'import/conv2_2/bias:0', TensorShape([Dimension(128)]))
+(u'import/conv2_2/BiasAdd', 'Output ', u'import/conv2_2/BiasAdd:0')
+
+
+('Operation:', u'import/conv2_2/Relu')
+(u'import/conv2_2/Relu', 'Input ', u'import/conv2_2/BiasAdd:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/conv2_2/Relu', 'Output ', u'import/conv2_2/Relu:0')
+
+
+('Operation:', u'import/pool2')
+(u'import/pool2', 'Input ', u'import/conv2_2/Relu:0', TensorShape([Dimension(None), Dimension(112), Dimension(112), Dimension(128)]))
+(u'import/pool2', 'Output ', u'import/pool2:0')
+
+
+('Operation:', u'import/conv3_1/filter')
+(u'import/conv3_1/filter', 'Output ', u'import/conv3_1/filter:0')
+
+
+('Operation:', u'import/conv3_1/Conv2D')
+(u'import/conv3_1/Conv2D', 'Input ', u'import/pool2:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(128)]))
+(u'import/conv3_1/Conv2D', 'Input ', u'import/conv3_1/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(128), Dimension(256)]))
+(u'import/conv3_1/Conv2D', 'Output ', u'import/conv3_1/Conv2D:0')
+
+
+('Operation:', u'import/conv3_1/bias')
+(u'import/conv3_1/bias', 'Output ', u'import/conv3_1/bias:0')
+
+
+('Operation:', u'import/conv3_1/BiasAdd')
+(u'import/conv3_1/BiasAdd', 'Input ', u'import/conv3_1/Conv2D:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_1/BiasAdd', 'Input ', u'import/conv3_1/bias:0', TensorShape([Dimension(256)]))
+(u'import/conv3_1/BiasAdd', 'Output ', u'import/conv3_1/BiasAdd:0')
+
+
+('Operation:', u'import/conv3_1/Relu')
+(u'import/conv3_1/Relu', 'Input ', u'import/conv3_1/BiasAdd:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_1/Relu', 'Output ', u'import/conv3_1/Relu:0')
+
+
+('Operation:', u'import/conv3_2/filter')
+(u'import/conv3_2/filter', 'Output ', u'import/conv3_2/filter:0')
+
+
+('Operation:', u'import/conv3_2/Conv2D')
+(u'import/conv3_2/Conv2D', 'Input ', u'import/conv3_1/Relu:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_2/Conv2D', 'Input ', u'import/conv3_2/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(256), Dimension(256)]))
+(u'import/conv3_2/Conv2D', 'Output ', u'import/conv3_2/Conv2D:0')
+
+
+('Operation:', u'import/conv3_2/bias')
+(u'import/conv3_2/bias', 'Output ', u'import/conv3_2/bias:0')
+
+
+('Operation:', u'import/conv3_2/BiasAdd')
+(u'import/conv3_2/BiasAdd', 'Input ', u'import/conv3_2/Conv2D:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_2/BiasAdd', 'Input ', u'import/conv3_2/bias:0', TensorShape([Dimension(256)]))
+(u'import/conv3_2/BiasAdd', 'Output ', u'import/conv3_2/BiasAdd:0')
+
+
+('Operation:', u'import/conv3_2/Relu')
+(u'import/conv3_2/Relu', 'Input ', u'import/conv3_2/BiasAdd:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_2/Relu', 'Output ', u'import/conv3_2/Relu:0')
+
+
+('Operation:', u'import/conv3_3/filter')
+(u'import/conv3_3/filter', 'Output ', u'import/conv3_3/filter:0')
+
+
+('Operation:', u'import/conv3_3/Conv2D')
+(u'import/conv3_3/Conv2D', 'Input ', u'import/conv3_2/Relu:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_3/Conv2D', 'Input ', u'import/conv3_3/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(256), Dimension(256)]))
+(u'import/conv3_3/Conv2D', 'Output ', u'import/conv3_3/Conv2D:0')
+
+
+('Operation:', u'import/conv3_3/bias')
+(u'import/conv3_3/bias', 'Output ', u'import/conv3_3/bias:0')
+
+
+('Operation:', u'import/conv3_3/BiasAdd')
+(u'import/conv3_3/BiasAdd', 'Input ', u'import/conv3_3/Conv2D:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_3/BiasAdd', 'Input ', u'import/conv3_3/bias:0', TensorShape([Dimension(256)]))
+(u'import/conv3_3/BiasAdd', 'Output ', u'import/conv3_3/BiasAdd:0')
+
+
+('Operation:', u'import/conv3_3/Relu')
+(u'import/conv3_3/Relu', 'Input ', u'import/conv3_3/BiasAdd:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/conv3_3/Relu', 'Output ', u'import/conv3_3/Relu:0')
+
+
+('Operation:', u'import/pool3')
+(u'import/pool3', 'Input ', u'import/conv3_3/Relu:0', TensorShape([Dimension(None), Dimension(56), Dimension(56), Dimension(256)]))
+(u'import/pool3', 'Output ', u'import/pool3:0')
+
+
+('Operation:', u'import/conv4_1/filter')
+(u'import/conv4_1/filter', 'Output ', u'import/conv4_1/filter:0')
+
+
+('Operation:', u'import/conv4_1/Conv2D')
+(u'import/conv4_1/Conv2D', 'Input ', u'import/pool3:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(256)]))
+(u'import/conv4_1/Conv2D', 'Input ', u'import/conv4_1/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(256), Dimension(512)]))
+(u'import/conv4_1/Conv2D', 'Output ', u'import/conv4_1/Conv2D:0')
+
+
+('Operation:', u'import/conv4_1/bias')
+(u'import/conv4_1/bias', 'Output ', u'import/conv4_1/bias:0')
+
+
+('Operation:', u'import/conv4_1/BiasAdd')
+(u'import/conv4_1/BiasAdd', 'Input ', u'import/conv4_1/Conv2D:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_1/BiasAdd', 'Input ', u'import/conv4_1/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv4_1/BiasAdd', 'Output ', u'import/conv4_1/BiasAdd:0')
+
+
+('Operation:', u'import/conv4_1/Relu')
+(u'import/conv4_1/Relu', 'Input ', u'import/conv4_1/BiasAdd:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_1/Relu', 'Output ', u'import/conv4_1/Relu:0')
+
+
+('Operation:', u'import/conv4_2/filter')
+(u'import/conv4_2/filter', 'Output ', u'import/conv4_2/filter:0')
+
+
+('Operation:', u'import/conv4_2/Conv2D')
+(u'import/conv4_2/Conv2D', 'Input ', u'import/conv4_1/Relu:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_2/Conv2D', 'Input ', u'import/conv4_2/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(512), Dimension(512)]))
+(u'import/conv4_2/Conv2D', 'Output ', u'import/conv4_2/Conv2D:0')
+
+
+('Operation:', u'import/conv4_2/bias')
+(u'import/conv4_2/bias', 'Output ', u'import/conv4_2/bias:0')
+
+
+('Operation:', u'import/conv4_2/BiasAdd')
+(u'import/conv4_2/BiasAdd', 'Input ', u'import/conv4_2/Conv2D:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_2/BiasAdd', 'Input ', u'import/conv4_2/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv4_2/BiasAdd', 'Output ', u'import/conv4_2/BiasAdd:0')
+
+
+('Operation:', u'import/conv4_2/Relu')
+(u'import/conv4_2/Relu', 'Input ', u'import/conv4_2/BiasAdd:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_2/Relu', 'Output ', u'import/conv4_2/Relu:0')
+
+
+('Operation:', u'import/conv4_3/filter')
+(u'import/conv4_3/filter', 'Output ', u'import/conv4_3/filter:0')
+
+
+('Operation:', u'import/conv4_3/Conv2D')
+(u'import/conv4_3/Conv2D', 'Input ', u'import/conv4_2/Relu:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_3/Conv2D', 'Input ', u'import/conv4_3/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(512), Dimension(512)]))
+(u'import/conv4_3/Conv2D', 'Output ', u'import/conv4_3/Conv2D:0')
+
+
+('Operation:', u'import/conv4_3/bias')
+(u'import/conv4_3/bias', 'Output ', u'import/conv4_3/bias:0')
+
+
+('Operation:', u'import/conv4_3/BiasAdd')
+(u'import/conv4_3/BiasAdd', 'Input ', u'import/conv4_3/Conv2D:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_3/BiasAdd', 'Input ', u'import/conv4_3/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv4_3/BiasAdd', 'Output ', u'import/conv4_3/BiasAdd:0')
+
+
+('Operation:', u'import/conv4_3/Relu')
+(u'import/conv4_3/Relu', 'Input ', u'import/conv4_3/BiasAdd:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/conv4_3/Relu', 'Output ', u'import/conv4_3/Relu:0')
+
+
+('Operation:', u'import/pool4')
+(u'import/pool4', 'Input ', u'import/conv4_3/Relu:0', TensorShape([Dimension(None), Dimension(28), Dimension(28), Dimension(512)]))
+(u'import/pool4', 'Output ', u'import/pool4:0')
+
+
+('Operation:', u'import/conv5_1/filter')
+(u'import/conv5_1/filter', 'Output ', u'import/conv5_1/filter:0')
+
+
+('Operation:', u'import/conv5_1/Conv2D')
+(u'import/conv5_1/Conv2D', 'Input ', u'import/pool4:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_1/Conv2D', 'Input ', u'import/conv5_1/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(512), Dimension(512)]))
+(u'import/conv5_1/Conv2D', 'Output ', u'import/conv5_1/Conv2D:0')
+
+
+('Operation:', u'import/conv5_1/bias')
+(u'import/conv5_1/bias', 'Output ', u'import/conv5_1/bias:0')
+
+
+('Operation:', u'import/conv5_1/BiasAdd')
+(u'import/conv5_1/BiasAdd', 'Input ', u'import/conv5_1/Conv2D:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_1/BiasAdd', 'Input ', u'import/conv5_1/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv5_1/BiasAdd', 'Output ', u'import/conv5_1/BiasAdd:0')
+
+
+('Operation:', u'import/conv5_1/Relu')
+(u'import/conv5_1/Relu', 'Input ', u'import/conv5_1/BiasAdd:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_1/Relu', 'Output ', u'import/conv5_1/Relu:0')
+
+
+('Operation:', u'import/conv5_2/filter')
+(u'import/conv5_2/filter', 'Output ', u'import/conv5_2/filter:0')
+
+
+('Operation:', u'import/conv5_2/Conv2D')
+(u'import/conv5_2/Conv2D', 'Input ', u'import/conv5_1/Relu:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_2/Conv2D', 'Input ', u'import/conv5_2/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(512), Dimension(512)]))
+(u'import/conv5_2/Conv2D', 'Output ', u'import/conv5_2/Conv2D:0')
+
+
+('Operation:', u'import/conv5_2/bias')
+(u'import/conv5_2/bias', 'Output ', u'import/conv5_2/bias:0')
+
+
+('Operation:', u'import/conv5_2/BiasAdd')
+(u'import/conv5_2/BiasAdd', 'Input ', u'import/conv5_2/Conv2D:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_2/BiasAdd', 'Input ', u'import/conv5_2/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv5_2/BiasAdd', 'Output ', u'import/conv5_2/BiasAdd:0')
+
+
+('Operation:', u'import/conv5_2/Relu')
+(u'import/conv5_2/Relu', 'Input ', u'import/conv5_2/BiasAdd:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_2/Relu', 'Output ', u'import/conv5_2/Relu:0')
+
+
+('Operation:', u'import/conv5_3/filter')
+(u'import/conv5_3/filter', 'Output ', u'import/conv5_3/filter:0')
+
+
+('Operation:', u'import/conv5_3/Conv2D')
+(u'import/conv5_3/Conv2D', 'Input ', u'import/conv5_2/Relu:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_3/Conv2D', 'Input ', u'import/conv5_3/filter:0', TensorShape([Dimension(3), Dimension(3), Dimension(512), Dimension(512)]))
+(u'import/conv5_3/Conv2D', 'Output ', u'import/conv5_3/Conv2D:0')
+
+
+('Operation:', u'import/conv5_3/bias')
+(u'import/conv5_3/bias', 'Output ', u'import/conv5_3/bias:0')
+
+
+('Operation:', u'import/conv5_3/BiasAdd')
+(u'import/conv5_3/BiasAdd', 'Input ', u'import/conv5_3/Conv2D:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_3/BiasAdd', 'Input ', u'import/conv5_3/bias:0', TensorShape([Dimension(512)]))
+(u'import/conv5_3/BiasAdd', 'Output ', u'import/conv5_3/BiasAdd:0')
+
+
+('Operation:', u'import/conv5_3/Relu')
+(u'import/conv5_3/Relu', 'Input ', u'import/conv5_3/BiasAdd:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/conv5_3/Relu', 'Output ', u'import/conv5_3/Relu:0')
+
+
+('Operation:', u'import/pool5')
+(u'import/pool5', 'Input ', u'import/conv5_3/Relu:0', TensorShape([Dimension(None), Dimension(14), Dimension(14), Dimension(512)]))
+(u'import/pool5', 'Output ', u'import/pool5:0')
+
+
+('Operation:', u'import/fc6/Reshape/shape')
+(u'import/fc6/Reshape/shape', 'Output ', u'import/fc6/Reshape/shape:0')
+
+
+('Operation:', u'import/fc6/Reshape')
+(u'import/fc6/Reshape', 'Input ', u'import/pool5:0', TensorShape([Dimension(None), Dimension(7), Dimension(7), Dimension(512)]))
+(u'import/fc6/Reshape', 'Input ', u'import/fc6/Reshape/shape:0', TensorShape([Dimension(2)]))
+(u'import/fc6/Reshape', 'Output ', u'import/fc6/Reshape:0')
+
+
+('Operation:', u'import/fc6/weight')
+(u'import/fc6/weight', 'Output ', u'import/fc6/weight:0')
+
+
+('Operation:', u'import/fc6/bias')
+(u'import/fc6/bias', 'Output ', u'import/fc6/bias:0')
+
+
+('Operation:', u'import/fc6/MatMul')
+(u'import/fc6/MatMul', 'Input ', u'import/fc6/Reshape:0', TensorShape([Dimension(None), Dimension(25088)]))
+(u'import/fc6/MatMul', 'Input ', u'import/fc6/weight:0', TensorShape([Dimension(25088), Dimension(4096)]))
+(u'import/fc6/MatMul', 'Output ', u'import/fc6/MatMul:0')
+
+
+('Operation:', u'import/fc6/BiasAdd')
+(u'import/fc6/BiasAdd', 'Input ', u'import/fc6/MatMul:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc6/BiasAdd', 'Input ', u'import/fc6/bias:0', TensorShape([Dimension(4096)]))
+(u'import/fc6/BiasAdd', 'Output ', u'import/fc6/BiasAdd:0')
+
+
+('Operation:', u'import/Relu')
+(u'import/Relu', 'Input ', u'import/fc6/BiasAdd:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/Relu', 'Output ', u'import/Relu:0')
+
+
+('Operation:', u'import/fc7/Reshape/shape')
+(u'import/fc7/Reshape/shape', 'Output ', u'import/fc7/Reshape/shape:0')
+
+
+('Operation:', u'import/fc7/Reshape')
+(u'import/fc7/Reshape', 'Input ', u'import/Relu:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc7/Reshape', 'Input ', u'import/fc7/Reshape/shape:0', TensorShape([Dimension(2)]))
+(u'import/fc7/Reshape', 'Output ', u'import/fc7/Reshape:0')
+
+
+('Operation:', u'import/fc7/weight')
+(u'import/fc7/weight', 'Output ', u'import/fc7/weight:0')
+
+
+('Operation:', u'import/fc7/bias')
+(u'import/fc7/bias', 'Output ', u'import/fc7/bias:0')
+
+
+('Operation:', u'import/fc7/MatMul')
+(u'import/fc7/MatMul', 'Input ', u'import/fc7/Reshape:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc7/MatMul', 'Input ', u'import/fc7/weight:0', TensorShape([Dimension(4096), Dimension(4096)]))
+(u'import/fc7/MatMul', 'Output ', u'import/fc7/MatMul:0')
+
+
+('Operation:', u'import/fc7/BiasAdd')
+(u'import/fc7/BiasAdd', 'Input ', u'import/fc7/MatMul:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc7/BiasAdd', 'Input ', u'import/fc7/bias:0', TensorShape([Dimension(4096)]))
+(u'import/fc7/BiasAdd', 'Output ', u'import/fc7/BiasAdd:0')
+
+
+('Operation:', u'import/Relu_1')
+(u'import/Relu_1', 'Input ', u'import/fc7/BiasAdd:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/Relu_1', 'Output ', u'import/Relu_1:0')
+
+
+('Operation:', u'import/fc8/Reshape/shape')
+(u'import/fc8/Reshape/shape', 'Output ', u'import/fc8/Reshape/shape:0')
+
+
+('Operation:', u'import/fc8/Reshape')
+(u'import/fc8/Reshape', 'Input ', u'import/Relu_1:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc8/Reshape', 'Input ', u'import/fc8/Reshape/shape:0', TensorShape([Dimension(2)]))
+(u'import/fc8/Reshape', 'Output ', u'import/fc8/Reshape:0')
+
+
+('Operation:', u'import/fc8/weight')
+(u'import/fc8/weight', 'Output ', u'import/fc8/weight:0')
+
+
+('Operation:', u'import/fc8/bias')
+(u'import/fc8/bias', 'Output ', u'import/fc8/bias:0')
+
+
+('Operation:', u'import/fc8/MatMul')
+(u'import/fc8/MatMul', 'Input ', u'import/fc8/Reshape:0', TensorShape([Dimension(None), Dimension(4096)]))
+(u'import/fc8/MatMul', 'Input ', u'import/fc8/weight:0', TensorShape([Dimension(4096), Dimension(1000)]))
+(u'import/fc8/MatMul', 'Output ', u'import/fc8/MatMul:0')
+
+
+('Operation:', u'import/fc8/BiasAdd')
+(u'import/fc8/BiasAdd', 'Input ', u'import/fc8/MatMul:0', TensorShape([Dimension(None), Dimension(1000)]))
+(u'import/fc8/BiasAdd', 'Input ', u'import/fc8/bias:0', TensorShape([Dimension(1000)]))
+(u'import/fc8/BiasAdd', 'Output ', u'import/fc8/BiasAdd:0')
+
+
+('Operation:', u'import/prob')
+(u'import/prob', 'Input ', u'import/fc8/BiasAdd:0', TensorShape([Dimension(None), Dimension(1000)]))
+(u'import/prob', 'Output ', u'import/prob:0')
+
+
+('Operation:', u'import/init')
+
+
+Failed to enable GUI event loop integration for 'tk'
+Traceback (most recent call last):
+  File "/home/ioana/utils/pycharm-5.0.4/helpers/pydev/pydev_ipython/matplotlibtools.py", line 29, in do_enable_gui
+    enable_gui(guiname)
+  File "/home/ioana/utils/pycharm-5.0.4/helpers/pydev/pydev_ipython/inputhook.py", line 509, in enable_gui
+    return gui_hook(app)
+  File "/home/ioana/utils/pycharm-5.0.4/helpers/pydev/pydev_ipython/inputhook.py", line 262, in enable_tk
+    app = _TK.Tk()
+  File "/home/ioana/anaconda2/lib/python2.7/lib-tk/Tkinter.py", line 1814, in __init__
+    self.tk = _tkinter.create(screenName, baseName, className, interactive, wantobjects, useTk, sync, use)
+TclError: Can't find a usable init.tcl in the following directories:
+    /opt/anaconda1anaconda2anaconda3/lib/tcl8.5 /home/ioana/sample/iorigins/lib/tcl8.5 /home/ioana/sample/lib/tcl8.5 /home/ioana/sample/iorigins/library /home/ioana/sample/library /home/ioana/sample/tcl8.5.18/library /home/ioana/tcl8.5.18/library
+
+
+
+This probably means that Tcl wasn't installed properly.
+
+Backend TkAgg is interactive backend. Turning interactive mode on.

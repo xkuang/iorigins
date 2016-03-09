@@ -61,24 +61,27 @@ class VGG(object):
     with tf.Session() as sess:
       init = tf.initialize_all_variables()
       sess.run(init)
-      print "variables initialized"
+      # print "variables initialized"
 
+      images = tf.placeholder("float", [None, self.image_size, self.image_size, 3], name="Placeholder")
+
+      preprocessed_frames = []
       for frame in frame_list:
         image_data = tf.convert_to_tensor(frame, dtype=tf.float32).eval()
         image_data = np.reshape(image_data, [1, self.image_size, self.image_size, 3])
         assert image_data.shape == (1, self.image_size, self.image_size, 3)
-        # DT_FLOAT
-        images = tf.placeholder("float", [None, self.image_size, self.image_size, 3])
+        preprocessed_frames.append(image_data)
 
-        feed_dict = { images: image_data }
+      batch_frames = np.row_stack(preprocessed_frames)
+      feed_dict = { "Placeholder:0": batch_frames }
 
-        tensor_list = []
+      tensor_list = []
 
-        for tensor in self.tensor_names:
-          tensor_list.append(sess.graph.get_tensor_by_name(tensor))
+      for tensor in self.tensor_names:
+        tensor_list.append(sess.graph.get_tensor_by_name(tensor))
 
-        feat_map_list = sess.run(tensor_list, feed_dict=feed_dict)
+      video_feat_maps = sess.run(tensor_list, feed_dict=feed_dict)
 
-        video_feat_maps.append(feat_map_list)
+      # video_feat_maps.append(feat_map_list)
 
     return video_feat_maps

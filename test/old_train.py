@@ -2,17 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os.path
-import re
-import sys
-import tarfile
-
 import time
 
-import numpy as np
-from six.moves import urllib
-import tensorflow as tf
-from video2text import *
+from test.video2text import *
 
 FLAGS = tf.app.flags.FLAGS
 

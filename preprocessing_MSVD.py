@@ -14,13 +14,14 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
 
-# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
-#                            """youtube clips path""")
-tf.app.flags.DEFINE_string('videos_dir', '/Volumes/Elements/media',
+tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
                            """youtube clips path""")
-
-tf.app.flags.DEFINE_string('feats_dir', '/Volumes/Elements/feats_vgg',
+# tf.app.flags.DEFINE_string('videos_dir', '/Volumes/Elements/media',
+#                            """youtube clips path""")
+tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats_vgg',
                            """youtube features path""")
+# tf.app.flags.DEFINE_string('feats_dir', '/Volumes/Elements/feats_vgg',
+#                            """youtube features path""")
 #switch to inception for inception
 tf.app.flags.DEFINE_string('cnn_type', 'vgg',
                            """the cnn to get the feature_maps_from""")
@@ -77,10 +78,10 @@ def main():
 
     cropped_frame_list = np.array(map(lambda x: cnn.preprocess_frame(x), frame_list))
     feats = cnn.get_features(cropped_frame_list)
-
+    # feats_stacked = np.row_stack(feats)
     save_full_path = os.path.join(FLAGS.feats_dir, video + '.pkl')
     dump_pkl(feats, save_full_path)
-
+    # np.save(save_full_path, feats_stacked)
 
 if __name__=="__main__":
     main()

@@ -48,7 +48,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
 
   @property
   def state_size(self):
-    return self._hidden_dim
+    return [self._input_width, self._input_height, self._hidden_size]
 
   @property
   def kernel_size(self):

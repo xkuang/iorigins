@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-from model import Spatio_Temporal_Generator
+from model_MSVD import Spatio_Temporal_Generator
 from utils import load_pkl
 
 FLAGS = tf.app.flags.FLAGS
@@ -18,15 +18,18 @@ tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
 tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
                            """index_to_word dictionary path""")
 
-tf.app.flags.DEFINE_string('image_size', 299,
+tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
+                                            [28, 28, 256],
+                                            [80, 14, 14, 512],
+                                            [80,  7,  7, 512]],
                            """the size of the input image/frame""")
-tf.app.flags.DEFINE_string('dim_hidden', 256,
+tf.app.flags.DEFINE_string('hidden_sizes', [64, 128, 256, 256, 512],
                            """youtube features path""")
 tf.app.flags.DEFINE_string('batch_size_train', 1,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
-tf.app.flags.DEFINE_string('nr_feat_maps', 13,
+tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """Nr of feature maps extracted from the inception CNN for each frame.""")
 tf.app.flags.DEFINE_string('nr_epochs', 1,
                            """Nr of epochs to train.""")
@@ -94,9 +97,9 @@ def train():
   np.save(FLAGS.index_to_word_dir, index_to_word)
 
   model = Spatio_Temporal_Generator(
-            image_size=FLAGS.image_size,
+            input_sizes=FLAGS.input_sizes,
             nr_words=len(word_to_index),
-            dim_hidden=FLAGS.dim_hidden,
+            hidden_sizes=FLAGS.hidden_sizes,
             batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
             nr_feat_maps=FLAGS.nr_feat_maps,
