@@ -101,7 +101,7 @@ class NodeLookup(object):
       return ''
     return self.node_lookup[node_id]
 
-class CNN(object):
+class Inception(object):
   def __init__(self):
     self.create_graph()
 
@@ -279,7 +279,7 @@ def preprocess_video():
 
   frame_list = np.array(frame_list)
 
-  cnn = CNN()
+  cnn = Inception()
 
   if frame_count > 80:
       frame_indices = np.linspace(0, frame_count, num=FLAGS.nr_frames, endpoint=False).astype(int)

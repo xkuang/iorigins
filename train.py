@@ -18,14 +18,16 @@ tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
 tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
                            """index_to_word dictionary path""")
 
-tf.app.flags.DEFINE_string('dim_image', 4096,
-                           """youtube features path""")
+tf.app.flags.DEFINE_string('image_size', 299,
+                           """the size of the input image/frame""")
 tf.app.flags.DEFINE_string('dim_hidden', 256,
                            """youtube features path""")
 tf.app.flags.DEFINE_string('batch_size_train', 1,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
+tf.app.flags.DEFINE_string('nr_feat_maps', 13,
+                           """Nr of feature maps extracted from the inception CNN for each frame.""")
 tf.app.flags.DEFINE_string('nr_epochs', 1,
                            """Nr of epochs to train.""")
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
@@ -92,11 +94,12 @@ def train():
   np.save(FLAGS.index_to_word_dir, index_to_word)
 
   model = Spatio_Temporal_Generator(
-            dim_image=FLAGS.dim_image,
+            image_size=FLAGS.image_size,
             nr_words=len(word_to_index),
             dim_hidden=FLAGS.dim_hidden,
             batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
+            nr_feat_maps=FLAGS.nr_feat_maps,
             bias_init_vector=bias_init_vector)
 
   for epoch in range(FLAGS.nr_epochs):

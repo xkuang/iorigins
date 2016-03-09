@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import skimage
 import tensorflow as tf
-from download_cnn import CNN
+from download_cnn import Inception
+from vgg import VGG
 from utils import dump_pkl
 
 FLAGS = tf.app.flags.FLAGS
@@ -13,15 +14,31 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('nr_frames', 80,
                            """Nr of sample frames at equally-space intervals.""")
 
-tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
+# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
+#                            """youtube clips path""")
+tf.app.flags.DEFINE_string('videos_dir', '/Volumes/Elements/media',
                            """youtube clips path""")
 
-tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
+tf.app.flags.DEFINE_string('feats_dir', '/Volumes/Elements/feats_vgg',
                            """youtube features path""")
+#switch to inception for inception
+tf.app.flags.DEFINE_string('cnn_type', 'vgg',
+                           """the cnn to get the feature_maps_from""")
+tf.app.flags.DEFINE_string('image_size', 224,
+                           """the size of the image that goes into the VGG net""")
+tf.app.flags.DEFINE_string('nr_feat_maps', 5,
+                           """the number of feature maps to get from the cnn""")
+tf.app.flags.DEFINE_string('tensor_names', ["import/pool2:0", "import/pool3:0", "import/pool4:0", "import/pool5:0", "import/Relu_1:0"],
+                           """the names of the tensors to run in the vgg network""")
 
 
 def main():
-  cnn = CNN()
+  if FLAGS.cnn_type == 'inception':
+    cnn = Inception()
+  else:
+    cnn = VGG(FLAGS.nr_feat_maps, FLAGS.tensor_names, FLAGS.image_size)
+    # cnn.printTensors()
+
   videos = os.listdir(FLAGS.videos_dir)
   videos = filter(lambda x: x.endswith('avi'), videos)
 

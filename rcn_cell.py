@@ -11,7 +11,9 @@ from tensorflow.python.ops.math_ops import sigmoid
 from tensorflow.python.ops.math_ops import tanh
 
 class GRCUCell(tf.nn.rnn_cell.RNNCell):
-   """Gated Recurrent Convolutional Unit cell (cf. http://arxiv.org/pdf/1511.06432v4)."""
+  """Gated Recurrent Convolutional Unit cell
+  (cf. http://arxiv.org/pdf/1511.06432v4).
+  """
 
   def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size):
     """Initialize the parameters for an GRCU cell.
