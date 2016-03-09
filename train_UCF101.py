@@ -33,6 +33,8 @@ tf.app.flags.DEFINE_string('batch_size_train', 1,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 10,
                            """Nr of sample frames at equally-space intervals.""")
+tf.app.flags.DEFINE_string('nr_classes', 101,
+                           """Nr of classes.""")
 tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """Nr of feature maps extracted from the inception CNN for each frame.""")
 tf.app.flags.DEFINE_string('nr_epochs', 1,
@@ -90,7 +92,8 @@ def train():
             hidden_sizes=FLAGS.hidden_sizes,
             batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
-            nr_feat_maps=FLAGS.nr_feat_maps)
+            nr_feat_maps=FLAGS.nr_feat_maps,
+            nr_classes=FLAGS.nr_classes)
 
   for epoch in range(FLAGS.nr_epochs):
     print ("epoch %d", epoch)
