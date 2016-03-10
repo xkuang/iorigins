@@ -36,7 +36,7 @@ class VGG(object):
     center_x = np.random.randint(0, height - random_crop_size + 1)
     center_y = np.random.randint(0, width - random_crop_size + 1)
 
-    cv2.imshow("original", image)
+    # cv2.imshow("original", image)
     image = image[center_x:(center_x + random_crop_size), center_y:(center_y + random_crop_size)]
     height, width, rgb = image.shape
 
@@ -54,9 +54,9 @@ class VGG(object):
       resized_image = resized_image[cropping_length:resized_image.shape[0] - cropping_length,:]
 
     image = cv2.resize(resized_image, (self.image_size, self.image_size))
-    cv2.imshow("cropped", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow("cropped", image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     return image
 
   def printTensors(self):

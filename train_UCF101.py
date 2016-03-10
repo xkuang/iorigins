@@ -37,12 +37,18 @@ tf.app.flags.DEFINE_string('nr_classes', 101,
                            """Nr of classes.""")
 tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """Nr of feature maps extracted from the inception CNN for each frame.""")
-tf.app.flags.DEFINE_string('nr_epochs', 1,
+tf.app.flags.DEFINE_string('nr_epochs', 1000,
                            """Nr of epochs to train.""")
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
                            """Model's learning rate.""")
+tf.app.flags.DEFINE_string('learning_rate_decay_factor', 0.6,
+                           """Model's learning rate decay factor.""")
 tf.app.flags.DEFINE_string('keep_prob', 0.7,
                            """Dropout ration for the last layer of the classifiers.""")
+tf.app.flags.DEFINE_string('nr_epochs_per_decay', 350,
+                           """Number of epochs per decay of the learning rate.""")
+tf.app.flags.DEFINE_string('moving_average_decay', 0.9999,
+                           """Moving average decay rate.""")
 
 def get_video_data():
     video_data = pd.read_csv(FLAGS.video_data_path, sep=',')
@@ -85,8 +91,17 @@ def create_vocab(captions, word_count_threshold=5): # borrowed this function fro
     return word_to_index, index_to_word, bias_init_vector
 
 
+def shuffle_train_data(train_data):
+  index = list(train_data.index)
+  np.random.shuffle(index)
+  train_data = train_data.ix[index]
+
+  return train_data
+
+
 def train():
   train_data = get_video_data()
+  nr_training_examples = train_data.shape[0]
 
   model = Action_Recognizer(
             input_sizes=FLAGS.input_sizes,
@@ -95,31 +110,28 @@ def train():
             nr_frames=FLAGS.nr_frames,
             nr_feat_maps=FLAGS.nr_feat_maps,
             nr_classes=FLAGS.nr_classes,
-            keep_prob=FLAGS.keep_prob)
+            keep_prob=FLAGS.keep_prob,
+            nr_training_examples=nr_training_examples,
+            nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
+            initial_learning_rate=FLAGS.learning_rate,
+            learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
+
+  global_step = tf.Variable(0, trainable=False)
 
   for epoch in range(FLAGS.nr_epochs):
     print ("epoch %d", epoch)
-    index = list(train_data.index)
-    np.random.shuffle(index)
-    train_data = train_data.ix[index]
+    train_data = shuffle_train_data(train_data)
 
-    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
-    current_train_data = current_train_data.reset_index(drop=True)
+    current_batch = np.random.sample(xrange(nr_training_examples), 64)
 
-    for start, end in zip(
-        range(0, len(current_train_data), FLAGS.batch_size_train),
-        range(FLAGS.batch_size_train, len(current_train_data), FLAGS.batch_size_train)):
+    current_videos = current_batch['video_path'].values
+    current_feats = current_batch['feat_path'].values
 
-      current_batch = current_train_data[start:end]
-      current_videos = current_batch['video_path'].values
-      current_feats = current_batch['feat_path'].values
+    current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
 
-      # current_feats = np.zeros((FLAGS.batch_size_train, FLAGS.nr_frames, dim_image))
-      current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
-
-      video_feats = current_feats_vals[0]
-      print ("nr frames for vid id %s : %d" % (current_batch['VideoID'].values[0], len(video_feats)))
-      # current_video_masks = np.zeros((batch_size, n_frame_step))
+    video_feats = current_feats_vals[0]
+    print ("nr frames for vid id %s : %d" % (current_batch['VideoID'].values[0], len(video_feats)))
+    # current_video_masks = np.zeros((batch_size, n_frame_step))
 
 def main(_):
   train()

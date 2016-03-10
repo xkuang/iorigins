@@ -99,7 +99,7 @@ def main():
       video_path, label = line.split()
       dict["video_path"].append(video_path)
       dict["label"].append(label)
-      dict["feat_path"].append(video_path + ".pkl")
+      dict["feat_path"].append(video_path.split("/")[-1] + ".pkl")
 
   train_data = pd.DataFrame(data=dict, columns=['video_path', 'label', "feat_path"])
 
