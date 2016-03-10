@@ -23,25 +23,25 @@ class Action_Recognizer():
     self.grcu_list = []
 
     for i, hidden_layer_size in enumerate(self.hidden_sizes):
-      self.gcru_list.append(GRCUCell(hidden_layer_size,
+      self.grcu_list.append(GRCUCell(hidden_layer_size,
                                      self.input_sizes[i][0],
                                      self.input_sizes[i][1],
                                      self.input_sizes[i][2],
                                      self.kernel_size))
 
 
-  def build_model(self):
+  def inference(self, feat_maps_batch):
     #feature map placeholders
-    feat_map_placeholders = []
-    for input_size in self.input_sizes:
-      feat_map_placeholders.append(tf.placeholder(tf.float32, [self.nr_frames,
-                                                               self.input_size[0],
-                                                               self.input_size[1],
-                                                               self.input_size[2]]))
+    # feat_map_placeholders = []
+    # for input_size in self.input_sizes:
+    #   feat_map_placeholders.append(tf.placeholder(tf.float32, [self.nr_frames,
+    #                                                            self.input_size[0],
+    #                                                            self.input_size[1],
+    #                                                            self.input_size[2]]))
 
     internal_states = []
     for grcu in self.grcu_list:
-      state_size = [grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
+      state_size = [self.batch_size_train, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
       internal_states.append(tf.zeros(state_size))
 
     outputs = []
@@ -50,7 +50,7 @@ class Action_Recognizer():
         tf.get_variable_scope().reuse_variables()
         for i, grcu in enumerate(self.grcu_list):
           with tf.variable_scope("GRU-RCN%d" % (i)):
-            output, internal_states = self.grcu( feat_map_placeholders[i,:,:,:], internal_states[i] )
+            output, internal_states = self.grcu( feat_maps_batch[:,i,:,:,:], internal_states[i] )
             outputs.append(output)
 
     for i, internal_state in internal_states:
@@ -88,16 +88,17 @@ class Action_Recognizer():
     return total_loss
 
   def train(self, total_loss, global_step):
-    nr_batches_per_epoch = self.nr_training_examples / self.batch_size_train
-    decay_steps = int(nr_batches_per_epoch * self.nr_epochs_per_decay)
+    # nr_batches_per_epoch = self.nr_training_examples / self.batch_size_train
+    # decay_steps = int(nr_batches_per_epoch * self.nr_epochs_per_decay)
 
     # Decay the learning rate exponentially based on the number of steps.
-    lr = tf.train.exponential_decay(self.initial_learning_rate,
-                                  global_step,
-                                  1000,
-                                  self.learning_rate_decay_factor,
-                                  staircase=True)
-    tf.scalar_summary('learning_rate', lr)
+    # lr = tf.train.exponential_decay(self.initial_learning_rate,
+    #                               global_step,
+    #                               1000,
+    #                               self.learning_rate_decay_factor,
+    #                               staircase=True)
+    # tf.scalar_summary('learning_rate', lr)
+    tf.scalar_summary('learning_rate', self.initial_learning_rate)
 
     # Generate moving averages of all losses and associated summaries.
     loss_averages_op = self.add_loss_summaries(total_loss)
@@ -105,7 +106,8 @@ class Action_Recognizer():
     # Compute gradients
     with tf.control_dependencies([loss_averages_op]):
       #TODO: Try RMSPropOptimizer sau AdaGrad sau Momentum
-      opt = tf.train.GradientDescentOptimizer(lr)
+      # opt = tf.train.GradientDescentOptimizer(lr)
+      opt = tf.train.GradientDescentOptimizer(self.initial_learning_rate)
       # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
       # opt = tf.train.RMSPropOptimizer(lr, 0.9)
       grads_and_vars = opt.compute_gradients(total_loss)

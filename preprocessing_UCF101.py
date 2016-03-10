@@ -14,15 +14,15 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('nr_frames', 10,
                            """Nr of sample frames cropped.""")
 
-# tf.app.flags.DEFINE_string('videos_dir', '/home/ioana/Downloads/UCF-101',
-#                            """youtube clips path""")
-tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
+tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
                            """youtube clips path""")
+# tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
+#                            """youtube clips path""")
 
-# tf.app.flags.DEFINE_string('feats_dir', '/home/ioana/Downloads/feats_ucf',
-#                            """youtube features path""")
-tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
+tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
                            """youtube features path""")
+# tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
+#                            """youtube features path""")
 
 #switch to inception for inception
 tf.app.flags.DEFINE_string('cnn_type', 'vgg',

@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from model_UCF101 import Action_Recognizer
 from utils import load_pkl
+import random
 
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv',
@@ -11,12 +12,12 @@ tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv
 
 # tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/UCF101',
 #                            """youtube clips path""")
-tf.app.flags.DEFINE_string('videos_dir', '/home/ioana/Downloads/UCF-101',
+tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
                            """youtube clips path""")
 
 # tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats_ucf',
 #                            """youtube features path""")
-tf.app.flags.DEFINE_string('feats_dir', '/home/ioana/Downloads/feats_ucf',
+tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
                            """youtube features path""")
 
 tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
@@ -24,12 +25,13 @@ tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_
 
 tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
                                             [28, 28, 256],
-                                            [80, 14, 14, 512],
-                                            [80,  7,  7, 512]],
+                                            [14, 14, 512],
+                                            [7,  7, 512],
+                                            [1, 1, 4096]],
                            """the size of the input image/frame""")
 tf.app.flags.DEFINE_string('hidden_sizes', [64, 128, 256, 256, 512],
                            """youtube features path""")
-tf.app.flags.DEFINE_string('batch_size_train', 1,
+tf.app.flags.DEFINE_string('batch_size_train', 64,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 10,
                            """Nr of sample frames at equally-space intervals.""")
@@ -113,6 +115,7 @@ def train():
             keep_prob=FLAGS.keep_prob,
             nr_training_examples=nr_training_examples,
             nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
+            moving_average_decay=FLAGS.moving_average_decay,
             initial_learning_rate=FLAGS.learning_rate,
             learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
 
@@ -122,15 +125,18 @@ def train():
     print ("epoch %d", epoch)
     train_data = shuffle_train_data(train_data)
 
-    current_batch = np.random.sample(xrange(nr_training_examples), 64)
+    current_batch_indices = random.sample(xrange(nr_training_examples), 64)
+    current_batch = train_data.ix[current_batch_indices]
 
     current_videos = current_batch['video_path'].values
     current_feats = current_batch['feat_path'].values
 
     current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
+    feat_maps_batch =  zip(*current_feats_vals)
+    logits = model.inference(feat_maps_batch)
 
-    video_feats = current_feats_vals[0]
-    print ("nr frames for vid id %s : %d" % (current_batch['VideoID'].values[0], len(video_feats)))
+    print ("video %s has %d frames" % (current_batch['video_path'].values[0], len(current_feats_vals[0])))
+
     # current_video_masks = np.zeros((batch_size, n_frame_step))
 
 def main(_):
