@@ -122,7 +122,7 @@ def train():
   global_step = tf.Variable(0, trainable=False)
 
   for epoch in range(FLAGS.nr_epochs):
-    print ("epoch %d", epoch)
+    print ("epoch %d" % epoch)
     train_data = shuffle_train_data(train_data)
 
     current_batch_indices = random.sample(xrange(nr_training_examples), 64)

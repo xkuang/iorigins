@@ -1,5 +1,6 @@
 from rcn_cell import GRCUCell
 import tensorflow as tf
+import numpy as np
 
 class Action_Recognizer():
   def __init__(self, input_sizes, hidden_sizes, batch_size_train, nr_frames,
@@ -24,11 +25,12 @@ class Action_Recognizer():
 
     for i, hidden_layer_size in enumerate(self.hidden_sizes):
       with tf.variable_scope("GRU-RCN%d" % (i)):
+        kernel = self.kernel_size if self.input_sizes[i][0] > self.kernel_size else self.input_sizes[i][0]
         self.grcu_list.append(GRCUCell(hidden_layer_size,
                                        self.input_sizes[i][0],
                                        self.input_sizes[i][1],
                                        self.input_sizes[i][2],
-                                       self.kernel_size))
+                                       kernel))
 
 
   def inference(self, feat_maps_batch):
@@ -45,14 +47,18 @@ class Action_Recognizer():
       state_size = [self.batch_size_train, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
       internal_states.append(tf.zeros(state_size))
 
-    for i in range(self.nr_frames):
-      for j, grcu in enumerate(self.grcu_list):
+    for j, grcu in enumerate(self.grcu_list):
+      if j == 4:
+        shape = feat_maps_batch[j].shape
+        feat_maps_batch[j] = np.reshape(feat_maps_batch[j], [shape[0], shape[1], 1, 1, shape[2]])
+      for i in range(self.nr_frames):
         _, internal_states[j] = grcu(tf.convert_to_tensor(feat_maps_batch[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
 
-    for i, internal_state in internal_states:
+    for i, grcu in enumerate(self.grcu_list):
+      internal_state = internal_states[i]
       avg_pool = tf.nn.avg_pool(internal_state,
                                 ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
-                                strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool' + i))
+                                strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool%d' % i))
       dropout = tf.nn.dropout(avg_pool, self.keep_prob)
 
       with tf.variable_scope("softmax_linear" + i) as scope:
