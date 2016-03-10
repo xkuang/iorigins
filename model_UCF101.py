@@ -58,19 +58,22 @@ class Action_Recognizer():
       internal_state = internal_states[i]
       avg_pool = tf.nn.avg_pool(internal_state,
                                 ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
-                                strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool%d' % i))
+                                strides=[1, 1, 1, 1], padding='VALID', name=('avg_pool%d' % i))
       dropout = tf.nn.dropout(avg_pool, self.keep_prob)
 
-      with tf.variable_scope("softmax_linear" + i) as scope:
-        weights_soft = self.variable_with_weight_decay("weights", [ self.input_sizes[i][2], self.nr_classes],
+      dropout_shape = dropout.get_shape()
+      reshaped_output = tf.reshape(dropout, [dropout_shape[0].value, dropout_shape[-1].value])
+
+      with tf.variable_scope("softmax_linear%d" % i) as scope:
+        weights_soft = self.variable_with_weight_decay("weights", [ self.hidden_sizes[i], self.nr_classes],
                                           stddev=0.07, wd=0.004)
         biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
                                   tf.constant_initializer(0.1))
-        softmax_linear = tf.nn.xw_plus_b(dropout, weights_soft, biases_soft, name=scope.name)
+        softmax_linear = tf.nn.xw_plus_b(reshaped_output, weights_soft, biases_soft, name=scope.name)
         tf.add_to_collection('predictions_ensamble', softmax_linear)
         # conv_summary.activation_summary(softmax_linear)
 
-      y = tf.constant(len(tf.get_collection('predictions_ensamble')))
+      y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
     return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'), y, name='softmax_linear_average')
 
 
