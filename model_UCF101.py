@@ -23,11 +23,12 @@ class Action_Recognizer():
     self.grcu_list = []
 
     for i, hidden_layer_size in enumerate(self.hidden_sizes):
-      self.grcu_list.append(GRCUCell(hidden_layer_size,
-                                     self.input_sizes[i][0],
-                                     self.input_sizes[i][1],
-                                     self.input_sizes[i][2],
-                                     self.kernel_size))
+      with tf.variable_scope("GRU-RCN%d" % (i)):
+        self.grcu_list.append(GRCUCell(hidden_layer_size,
+                                       self.input_sizes[i][0],
+                                       self.input_sizes[i][1],
+                                       self.input_sizes[i][2],
+                                       self.kernel_size))
 
 
   def inference(self, feat_maps_batch):
@@ -44,14 +45,9 @@ class Action_Recognizer():
       state_size = [self.batch_size_train, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
       internal_states.append(tf.zeros(state_size))
 
-    outputs = []
     for i in range(self.nr_frames):
-      if i > 0:
-        tf.get_variable_scope().reuse_variables()
-        for i, grcu in enumerate(self.grcu_list):
-          with tf.variable_scope("GRU-RCN%d" % (i)):
-            output, internal_states = self.grcu( feat_maps_batch[:,i,:,:,:], internal_states[i] )
-            outputs.append(output)
+      for j, grcu in enumerate(self.grcu_list):
+        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_maps_batch[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
 
     for i, internal_state in internal_states:
       avg_pool = tf.nn.avg_pool(internal_state,

@@ -133,6 +133,8 @@ def train():
 
     current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
     feat_maps_batch =  zip(*current_feats_vals)
+
+    feat_maps_batch = map(lambda x: np.asarray(x), feat_maps_batch)
     logits = model.inference(feat_maps_batch)
 
     print ("video %s has %d frames" % (current_batch['video_path'].values[0], len(current_feats_vals[0])))

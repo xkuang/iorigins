@@ -30,6 +30,34 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
     self._input_size = input_size
     self._kernel_size = kernel_size
 
+    dtype = tf.float32
+    initializer = tf.truncated_normal_initializer(stddev=0.01)
+    #update gate kernels
+    with tf.variable_scope("Gates"):
+      self.W_z = tf.get_variable(
+            "W_z", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+      self.U_z = tf.get_variable(
+            "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+
+      #reset gate kernels
+      self.W_r = tf.get_variable(
+            "W_r", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+      self.U_r = tf.get_variable(
+            "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+
+    #candidate gate kernels
+    with tf.variable_scope("Candidate"):
+      self.W = tf.get_variable(
+                "W", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+      self.U = tf.get_variable(
+            "U", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+
   @property
   def input_width(self):
     return self._input_width
@@ -56,49 +84,28 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
 
   def __call__(self, input_, state, scope=None):
     """Gated recurrent unit (GRU) with nunits cells."""
-    dtype = input_.dtype
 
-    with vs.variable_scope(scope or type(self).__name__):  # "GRUCell"
-      with vs.variable_scope("Gates"):  # Reset gate and update gate.
-        #update gate kernels
-        W_z = vs.get_variable(
-              "W_z", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size], dtype=dtype)
-        U_z = vs.get_variable(
-              "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size], dtype=dtype)
+    #convolution operations for update gate
+    conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")
+    conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
 
-        #convolution operations for update gate
-        conv_W_z = tf.nn.conv2d(input_, W_z, [1, 1, 1, 1], padding="SAME")
-        conv_U_z = tf.nn.conv2d(state, U_z, [1, 1, 1, 1], padding="SAME")
+    u = conv_W_z + conv_U_z
+    u = sigmoid(u)
 
-        u = conv_W_z + conv_U_z
-        u = sigmoid(u)
+    #convolution operations for reset gate
+    conv_W_r = tf.nn.conv2d(input_, self.W_r, [1, 1, 1, 1], padding="SAME")
+    conv_U_r = tf.nn.conv2d(state, self.U_r, [1, 1, 1, 1], padding="SAME")
 
-        #reset gate kernels
-        W_r = vs.get_variable(
-              "W_r", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size], dtype=dtype)
-        U_r = vs.get_variable(
-              "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size], dtype=dtype)
+    r = conv_W_r + conv_U_r
+    r = sigmoid(r)
 
-        #convolution operations for reset gate
-        conv_W_r = tf.nn.conv2d(input_, W_r, [1, 1, 1, 1], padding="SAME")
-        conv_U_r = tf.nn.conv2d(state, U_r, [1, 1, 1, 1], padding="SAME")
+    #convolution operations for candidate gate
+    conv_W = tf.nn.conv2d(input_, self.W, [1, 1, 1, 1], padding="SAME")
+    conv_U = tf.nn.conv2d(r * state, self.U, [1, 1, 1, 1], padding="SAME")
 
-        r = conv_W_r + conv_U_r
-        r = sigmoid(r)
+    c = conv_W + conv_U
+    c = tanh(c)
 
-      with vs.variable_scope("Candidate"):
-        #candidate gate kernels
-        W = vs.get_variable(
-              "W", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size], dtype=dtype)
-        U = vs.get_variable(
-              "U", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size], dtype=dtype)
+    new_h = u * state + (1 - u) * c
 
-        #convolution operations for candidate gate
-        conv_W = tf.nn.conv2d(input_, W, [1, 1, 1, 1], padding="SAME")
-        conv_U = tf.nn.conv2d(r * state, U, [1, 1, 1, 1], padding="SAME")
-
-        c = conv_W + conv_U
-        c = tanh(c)
-
-      new_h = u * state + (1 - u) * c
     return new_h, new_h
