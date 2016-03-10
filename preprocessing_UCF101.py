@@ -14,14 +14,16 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('nr_frames', 10,
                            """Nr of sample frames cropped.""")
 
-tf.app.flags.DEFINE_string('videos_dir', '/home/ioana/Downloads/UCF-101',
-                           """youtube clips path""")
-# tf.app.flags.DEFINE_string('videos_dir', '/Volumes/Elements/media',
+# tf.app.flags.DEFINE_string('videos_dir', '/home/ioana/Downloads/UCF-101',
 #                            """youtube clips path""")
-tf.app.flags.DEFINE_string('feats_dir', '/home/ioana/Downloads/feats_ucf',
-                           """youtube features path""")
-# tf.app.flags.DEFINE_string('feats_dir', '/Volumes/Elements/feats_vgg',
+tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
+                           """youtube clips path""")
+
+# tf.app.flags.DEFINE_string('feats_dir', '/home/ioana/Downloads/feats_ucf',
 #                            """youtube features path""")
+tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
+                           """youtube features path""")
+
 #switch to inception for inception
 tf.app.flags.DEFINE_string('cnn_type', 'vgg',
                            """the cnn to get the feature_maps_from""")
@@ -35,6 +37,10 @@ tf.app.flags.DEFINE_string('train_test_split', './ucfTrainTestlist/trainlist01.t
                            """file where the train-test split info resides""")
 tf.app.flags.DEFINE_string('train_data_file', './ucfTrainTestlist/train_data.csv',
                            """file where the train-test split info resides""")
+tf.app.flags.DEFINE_string('cropping_sizes', [240, 224, 192, 168],
+                           """the cropping sizes to randomly sample from""")
+
+
 def process_record(cnn, data):
   if os.path.exists (os.path.join(FLAGS.feats_dir, data['feat_path'])):
     print "Already processed ... "
@@ -55,19 +61,22 @@ def process_record(cnn, data):
     ret, frame = cap.read()
 
     if ret is False:
-      return
+      break
 
     frame_list.append(frame)
     frame_count += 1
 
+  if frame_count == 0:
+    return
+
   frame_list = np.array(frame_list)
 
   if frame_count > FLAGS.nr_frames:
-    start = np.randint(0, frame_count - 10)
+    start = np.random.randint(0, frame_count - 10)
     frame_indices = np.arange(start, start + 10)
     frame_list = frame_list[frame_indices]
 
-  cropped_frame_list = np.array(map(lambda x: cnn.preprocess_frame(x), frame_list))
+  cropped_frame_list = np.array(map(lambda x: cnn.preprocess_frame(FLAGS.cropping_sizes, x), frame_list))
   feats = cnn.get_features(cropped_frame_list)
   # feats_stacked = np.row_stack(feats)
   save_full_path = os.path.join(FLAGS.feats_dir, data['feat_path'])

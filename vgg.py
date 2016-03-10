@@ -22,14 +22,24 @@ class VGG(object):
       _ = tf.import_graph_def(graph_def, input_map={ "images": images })
       print "graph loaded from disk"
 
-  def preprocess_frame(self, image):
+  def preprocess_frame(self, cropping_sizes, image):
     if len(image.shape) == 2:
         image = np.tile(image[:,:,None], 3)
     elif len(image.shape) == 4:
         image = image[:,:,:,0]
 
+    random_crop_size = cropping_sizes[np.random.randint(0, len(cropping_sizes))]
+
+
     # image = skimage.img_as_float(image).astype(np.float32)
     height, width, rgb = image.shape
+    center_x = np.random.randint(0, height - random_crop_size + 1)
+    center_y = np.random.randint(0, width - random_crop_size + 1)
+
+    cv2.imshow("original", image)
+    image = image[center_x:(center_x + random_crop_size), center_y:(center_y + random_crop_size)]
+    height, width, rgb = image.shape
+
     if width == height:
       resized_image = cv2.resize(image, (self.image_size, self.image_size))
 
@@ -43,7 +53,11 @@ class VGG(object):
       cropping_length = int((resized_image.shape[0] - self.image_size) / 2)
       resized_image = resized_image[cropping_length:resized_image.shape[0] - cropping_length,:]
 
-    return cv2.resize(resized_image, (self.image_size, self.image_size))
+    image = cv2.resize(resized_image, (self.image_size, self.image_size))
+    cv2.imshow("cropped", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return image
 
   def printTensors(self):
     graph = tf.get_default_graph()

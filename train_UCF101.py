@@ -41,7 +41,8 @@ tf.app.flags.DEFINE_string('nr_epochs', 1,
                            """Nr of epochs to train.""")
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
                            """Model's learning rate.""")
-
+tf.app.flags.DEFINE_string('keep_prob', 0.7,
+                           """Dropout ration for the last layer of the classifiers.""")
 
 def get_video_data():
     video_data = pd.read_csv(FLAGS.video_data_path, sep=',')
@@ -93,7 +94,8 @@ def train():
             batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
             nr_feat_maps=FLAGS.nr_feat_maps,
-            nr_classes=FLAGS.nr_classes)
+            nr_classes=FLAGS.nr_classes,
+            keep_prob=FLAGS.keep_prob)
 
   for epoch in range(FLAGS.nr_epochs):
     print ("epoch %d", epoch)

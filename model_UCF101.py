@@ -2,7 +2,7 @@ from rcn_cell import GRCUCell
 import tensorflow as tf
 
 class Action_Recognizer():
-  def __init__(self, input_sizes, hidden_sizes, batch_size_train, nr_frames, nr_feat_maps, nr_classes):
+  def __init__(self, input_sizes, hidden_sizes, batch_size_train, nr_frames, nr_feat_maps, nr_classes, keep_prob):
     self.input_sizes = input_sizes
     self.hidden_sizes = hidden_sizes
     self.batch_size_train = batch_size_train
@@ -10,6 +10,7 @@ class Action_Recognizer():
     self.nr_feat_maps = nr_feat_maps
     self.kernel_size = 3
     self.nr_classes = nr_classes
+    self.keep_prob = keep_prob
 
     self.grcu_list = []
 
@@ -44,12 +45,11 @@ class Action_Recognizer():
             output, internal_states = self.grcu( feat_map_placeholders[i,:,:,:], internal_states[i] )
             outputs.append(output)
 
-    output_embeds = []
     for i, internal_state in internal_states:
       avg_pool = tf.nn.avg_pool(internal_state,
                                 ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
                                 strides=[1, 1, 1, 1], padding='SAME', name=('avg_pool' + i))
-      dropout = tf.nn.dropout(avg_pool, 0.5)
+      dropout = tf.nn.dropout(avg_pool, self.keep_prob)
 
       with tf.variable_scope("softmax_linear" + i) as scope:
         weights_soft = self.variable_with_weight_decay("weights", [ self.input_sizes[i][2], self.nr_classes],
@@ -57,11 +57,28 @@ class Action_Recognizer():
         biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
                                   tf.constant_initializer(0.1))
         softmax_linear = tf.nn.xw_plus_b(dropout, weights_soft, biases_soft, name=scope.name)
-        output_embeds.append(softmax_linear)
+        tf.add_to_collection('predictions_ensamble', softmax_linear)
         # conv_summary.activation_summary(softmax_linear)
+    return tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_average')
 
 
-  def variable_with_weight_decay(name, shape, stddev, wd):
+  def loss(self, logits, labels):
+    dense_labels = self.sparse_to_dense(labels)
+
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+      logits, dense_labels, name='cross_entropy_per_example')
+
+    cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+    tf.add_to_collection('losses', cross_entropy_mean)
+
+    # The total loss is defined as the cross entropy loss plus all of the weight
+    # decay terms (L2 loss).
+    total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+
+    return total_loss
+
+
+  def variable_with_weight_decay(self, name, shape, stddev, wd):
     """Helper to create an initialized Variable with weight decay.
 
     Note that the Variable is initialized with a truncated normal distribution.
@@ -77,7 +94,7 @@ class Action_Recognizer():
     Returns:
       Variable Tensor
     """
-    var = variable_on_cpu(name, shape, tf.truncated_normal_initializer(stddev=stddev))
+    var = self.variable_on_cpu(name, shape, tf.truncated_normal_initializer(stddev=stddev))
 
     if wd:
       weight_decay = tf.mul(tf.nn.l2_loss(var), wd, name="weight_loss")
@@ -85,7 +102,7 @@ class Action_Recognizer():
     return var
 
 
-  def variable_on_cpu(name, shape, initializer):
+  def variable_on_cpu(self, name, shape, initializer):
     """Helper to create a Variable stored on CPU memory.
 
     Args:
@@ -99,3 +116,15 @@ class Action_Recognizer():
     with tf.device('/cpu:0'):
       var = tf.get_variable(name, shape, initializer=initializer)
     return var
+
+
+  def conv_sparse_to_dense(self, labels):
+    # Reshape the labels into a dense Tensor of
+    # shape [batch_size, NUM_CLASSES].
+    sparse_labels = tf.reshape(labels, [self.batch_size_train, 1])
+    indices = tf.reshape(tf.range(0, self.batch_size_train), [self.batch_size_train, 1])
+    concated = tf.concat(1, [indices, sparse_labels])
+    dense_labels = tf.sparse_to_dense(concated,
+                                      [self.batch_size_train, self.nr_classes],
+                                      1.0, 0.0)
+    return dense_labels
