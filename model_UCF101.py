@@ -33,14 +33,15 @@ class Action_Recognizer():
                                        kernel))
 
 
-  def inference(self, feat_maps_batch):
-    #feature map placeholders
-    # feat_map_placeholders = []
-    # for input_size in self.input_sizes:
-    #   feat_map_placeholders.append(tf.placeholder(tf.float32, [self.nr_frames,
-    #                                                            self.input_size[0],
-    #                                                            self.input_size[1],
-    #                                                            self.input_size[2]]))
+  def inference(self):
+    # feature map placeholders
+    feat_map_placeholders = []
+    for input_size in self.input_sizes:
+      feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
+                                                               self.nr_frames,
+                                                               self.input_size[0],
+                                                               self.input_size[1],
+                                                               self.input_size[2]]))
 
     internal_states = []
     for grcu in self.grcu_list:
@@ -48,11 +49,8 @@ class Action_Recognizer():
       internal_states.append(tf.zeros(state_size))
 
     for j, grcu in enumerate(self.grcu_list):
-      if j == 4:
-        shape = feat_maps_batch[j].shape
-        feat_maps_batch[j] = np.reshape(feat_maps_batch[j], [shape[0], shape[1], 1, 1, shape[2]])
       for i in range(self.nr_frames):
-        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_maps_batch[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
+        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
 
     for i, grcu in enumerate(self.grcu_list):
       internal_state = internal_states[i]
@@ -66,10 +64,11 @@ class Action_Recognizer():
 
       with tf.variable_scope("softmax_linear%d" % i) as scope:
         weights_soft = self.variable_with_weight_decay("weights", [ self.hidden_sizes[i], self.nr_classes],
-                                          stddev=0.07, wd=0.004)
+                                          stddev=1/self.hidden_sizes[i], wd=0.0)
         biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
-                                  tf.constant_initializer(0.1))
+                                  tf.constant_initializer(0.0))
         softmax_linear = tf.nn.xw_plus_b(reshaped_output, weights_soft, biases_soft, name=scope.name)
+        # softmax = tf.nn.softmax(logits)
         tf.add_to_collection('predictions_ensamble', softmax_linear)
         # conv_summary.activation_summary(softmax_linear)
 
@@ -78,10 +77,10 @@ class Action_Recognizer():
 
 
   def loss(self, logits, labels):
-    dense_labels = self.sparse_to_dense(labels)
+    # dense_labels = self.sparse_to_dense(labels)
 
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
-      logits, dense_labels, name='cross_entropy_per_example')
+      logits, labels, name='cross_entropy_per_example')
 
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
     tf.add_to_collection('losses', cross_entropy_mean)
@@ -170,7 +169,7 @@ class Action_Recognizer():
     return var
 
 
-  def conv_sparse_to_dense(self, labels):
+  def sparse_to_dense(self, labels):
     # Reshape the labels into a dense Tensor of
     # shape [batch_size, NUM_CLASSES].
     sparse_labels = tf.reshape(labels, [self.batch_size_train, 1])

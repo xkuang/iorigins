@@ -31,7 +31,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
     self._kernel_size = kernel_size
 
     dtype = tf.float32
-    initializer = tf.truncated_normal_initializer(stddev=0.01)
+    initializer = tf.truncated_normal_initializer(stddev=1e-4)
     #update gate kernels
     with tf.variable_scope("Gates"):
       self.W_z = tf.get_variable(

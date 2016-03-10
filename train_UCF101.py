@@ -5,8 +5,13 @@ import numpy as np
 from model_UCF101 import Action_Recognizer
 from utils import load_pkl
 import random
+import time
+import datetime
 
 FLAGS = tf.app.flags.FLAGS
+tf.app.flags.DEFINE_string('train_dir', './train_UCF101',
+                           """Directory where to write event logs """
+                           """and checkpoint.""")
 tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv',
                            """path to video corpus""")
 
@@ -39,7 +44,7 @@ tf.app.flags.DEFINE_string('nr_classes', 101,
                            """Nr of classes.""")
 tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """Nr of feature maps extracted from the inception CNN for each frame.""")
-tf.app.flags.DEFINE_string('nr_epochs', 1000,
+tf.app.flags.DEFINE_string('max_steps', 1000,
                            """Nr of epochs to train.""")
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
                            """Model's learning rate.""")
@@ -51,6 +56,8 @@ tf.app.flags.DEFINE_string('nr_epochs_per_decay', 350,
                            """Number of epochs per decay of the learning rate.""")
 tf.app.flags.DEFINE_string('moving_average_decay', 0.9999,
                            """Moving average decay rate.""")
+tf.app.flags.DEFINE_boolean('log_device_placement', False,
+                            """Whether to log device placement.""")
 
 def get_video_data():
     video_data = pd.read_csv(FLAGS.video_data_path, sep=',')
@@ -121,27 +128,82 @@ def train():
 
   global_step = tf.Variable(0, trainable=False)
 
-  for epoch in range(FLAGS.nr_epochs):
-    print ("epoch %d" % epoch)
-    train_data = shuffle_train_data(train_data)
+  train_data = shuffle_train_data(train_data)
 
-    current_batch_indices = random.sample(xrange(nr_training_examples), 64)
-    current_batch = train_data.ix[current_batch_indices]
+  current_batch_indices = random.sample(xrange(nr_training_examples), 64)
+  current_batch = train_data.ix[current_batch_indices]
 
-    current_videos = current_batch['video_path'].values
-    current_feats = current_batch['feat_path'].values
+  current_videos = current_batch['video_path'].values
+  current_feats = current_batch['feat_path'].values
+  labels = current_batch['label'].values
 
-    current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
-    feat_maps_batch =  zip(*current_feats_vals)
+  current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
+  feat_maps_batch =  zip(*current_feats_vals)
 
-    feat_maps_batch = map(lambda x: np.asarray(x), feat_maps_batch)
-    logits = model.inference(feat_maps_batch)
+  feat_maps_batch = map(lambda x: np.asarray(x), feat_maps_batch)
+  shape = feat_maps_batch[4].shape
+  feat_maps_batch[4] = np.reshape(feat_maps_batch[4], [shape[0], shape[1], 1, 1, shape[2]])
 
-    # print ("video %s has %d frames" % (current_batch['video_path'].values[0], len(current_feats_vals[0])))
+  logits = model.inference()
 
-    # current_video_masks = np.zeros((batch_size, n_frame_step))
+  loss = model.loss(logits, labels)
+
+  train_op = model.train(loss, global_step)
+
+  # Create a saver.
+  saver = tf.train.Saver(tf.all_variables())
+
+  # Build the summary operation based on the TF collection of Summaries.
+  summary_op = tf.merge_all_summaries()
+
+  # Build an initialization operation to run below.
+  init = tf.initialize_all_variables()
+
+  # Start running operations on the Graph.
+  sess = tf.Session(config=tf.ConfigProto(
+        log_device_placement=FLAGS.log_device_placement))
+  sess.run(init)
+
+  # Start the queue runners.
+  tf.train.start_queue_runners(sess=sess)
+
+  graph_def = sess.graph.as_graph_def(add_shapes=True)
+  summary_writer = tf.train.SummaryWriter(FLAGS.train_dir,
+                                          graph_def=graph_def)
+
+  for step in xrange(FLAGS.max_steps):
+    print ("epoch %d" % step)
+
+    start_time = time.time()
+    _, loss_value = sess.run([train_op, loss])
+    duration = time.time() - start_time
+
+    assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+
+    if step % 10 == 0:
+      num_examples_per_step = FLAGS.batch_size_train
+      examples_per_sec = num_examples_per_step / duration
+      sec_per_batch = float(duration)
+
+      format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+                    'sec/batch)')
+      print (format_str % (datetime.now(), step, loss_value,
+                           examples_per_sec, sec_per_batch))
+
+    if step % 100 == 0:
+      summary_str = sess.run(summary_op)
+      summary_writer.add_summary(summary_str, step)
+
+      # Save the model checkpoint periodically.
+      if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+        checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+        saver.save(sess, checkpoint_path, global_step=step)
+
 
 def main(_):
+  if tf.gfile.Exists(FLAGS.train_dir):
+    tf.gfile.DeleteRecursively(FLAGS.train_dir)
+  tf.gfile.MakeDirs(FLAGS.train_dir)
   train()
 
 if __name__ == '__main__':
