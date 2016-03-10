@@ -36,12 +36,12 @@ class Action_Recognizer():
   def inference(self):
     # feature map placeholders
     feat_map_placeholders = []
-    for input_size in self.input_sizes:
+    for i, input_size in enumerate(self.input_sizes):
       feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
                                                                self.nr_frames,
-                                                               self.input_size[0],
-                                                               self.input_size[1],
-                                                               self.input_size[2]]))
+                                                               input_size[0],
+                                                               input_size[1],
+                                                               input_size[2]], name=("feat_map_%d" % i)))
 
     internal_states = []
     for grcu in self.grcu_list:
@@ -73,13 +73,14 @@ class Action_Recognizer():
         # conv_summary.activation_summary(softmax_linear)
 
       y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
-    return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'), y, name='softmax_linear_average')
+    return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'),
+                      y, name='softmax_linear_average'), feat_map_placeholders
 
 
   def loss(self, logits, labels):
     # dense_labels = self.sparse_to_dense(labels)
 
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       logits, labels, name='cross_entropy_per_example')
 
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')

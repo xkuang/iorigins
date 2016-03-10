@@ -144,7 +144,7 @@ def train():
   shape = feat_maps_batch[4].shape
   feat_maps_batch[4] = np.reshape(feat_maps_batch[4], [shape[0], shape[1], 1, 1, shape[2]])
 
-  logits = model.inference()
+  logits, feat_map_placeholders = model.inference(feat_maps_batch)
 
   loss = model.loss(logits, labels)
 
@@ -173,9 +173,12 @@ def train():
 
   for step in xrange(FLAGS.max_steps):
     print ("epoch %d" % step)
+    # dict = {}
+    # for i, input_size in enumerate(FLAGS.input_sizes):
+    #   dict["feat_map_%d" % i] = feat_maps_batch[i]
 
     start_time = time.time()
-    _, loss_value = sess.run([train_op, loss])
+    _, loss_value = sess.run([train_op, loss], feed_dict={i: d for i, d in zip(feat_maps_batch, feat_map_placeholders)})
     duration = time.time() - start_time
 
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
