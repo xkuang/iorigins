@@ -144,7 +144,7 @@ def train():
   shape = feat_maps_batch[4].shape
   feat_maps_batch[4] = np.reshape(feat_maps_batch[4], [shape[0], shape[1], 1, 1, shape[2]])
 
-  logits, feat_map_placeholders = model.inference(feat_maps_batch)
+  logits, feat_map_placeholders = model.inference()
 
   loss = model.loss(logits, labels)
 
