@@ -15,17 +15,17 @@ tf.app.flags.DEFINE_string('train_dir', './train_UCF101',
 tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv',
                            """path to video corpus""")
 
-# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/UCF101',
-#                            """youtube clips path""")
-tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
+tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
                            """youtube clips path""")
+# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
+#                            """youtube clips path""")
 
-# tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats_ucf',
-#                            """youtube features path""")
-tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
+tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
                            """youtube features path""")
+# tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
+#                            """youtube features path""")
 
-tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
+tf.app.flags.DEFINE_string('index_to_word_dir', './index_to_word',
                            """index_to_word dictionary path""")
 
 tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
@@ -68,36 +68,6 @@ def get_video_data():
     # unique_filenames = video_data['video_path'].unique()
 
     return video_data
-
-
-def create_vocab(captions, word_count_threshold=5): # borrowed this function from NeuralTalk
-    print 'preprocessing word counts and creating vocab based on word count threshold %d' % (word_count_threshold, )
-    word_counts = {}
-    nr_captions = 0
-    for caption in captions:
-        nr_captions += 1
-        for word in caption.lower().split(' '):
-           word_counts[word] = word_counts.get(word, 0) + 1
-
-    vocab = [word for word in word_counts if word_counts[word] >= word_count_threshold]
-    print 'filtered words from %d to %d' % (len(word_counts), len(vocab))
-
-    index_to_word = {}
-    index_to_word[0] = '.'  # period at the end of the sentence. make first dimension be end token
-    word_to_index = {}
-    word_to_index['#START#'] = 0 # make first vector be the start token
-    index = 1
-    for word in vocab:
-        word_to_index[word] = index
-        index_to_word[index] = word
-        index += 1
-
-    word_counts['.'] = nr_captions
-    bias_init_vector = np.array([1.0 * word_counts[index_to_word[index]] for index in index_to_word])
-    bias_init_vector /= np.sum(bias_init_vector) # normalize to frequencies
-    bias_init_vector = np.log(bias_init_vector)
-    bias_init_vector -= np.max(bias_init_vector) # shift to nice numeric range
-    return word_to_index, index_to_word, bias_init_vector
 
 
 def shuffle_train_data(train_data):
@@ -164,9 +134,6 @@ def train():
         log_device_placement=FLAGS.log_device_placement))
   sess.run(init)
 
-  # Start the queue runners.
-  tf.train.start_queue_runners(sess=sess)
-
   graph_def = sess.graph.as_graph_def(add_shapes=True)
   summary_writer = tf.train.SummaryWriter(FLAGS.train_dir,
                                           graph_def=graph_def)
@@ -178,7 +145,7 @@ def train():
     #   dict["feat_map_%d" % i] = feat_maps_batch[i]
 
     start_time = time.time()
-    _, loss_value = sess.run([train_op, loss], feed_dict={i: d for i, d in zip(feat_maps_batch, feat_map_placeholders)})
+    _, loss_value = sess.run([train_op, loss], feed_dict={i: d for i, d in zip(feat_map_placeholders, feat_maps_batch)})
     duration = time.time() - start_time
 
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'

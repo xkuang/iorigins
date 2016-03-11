@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import math
 import tensorflow as tf
+import re
 from tensorflow.python.ops import variable_scope as vs
 
 from tensorflow.python.ops.math_ops import sigmoid
@@ -87,6 +88,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
 
     #convolution operations for update gate
     conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")
+    # activation_summary(conv_W_z)
     conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
 
     u = conv_W_z + conv_U_z
@@ -109,3 +111,21 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
     new_h = u * state + (1 - u) * c
 
     return new_h, new_h
+
+  # def _activation_summary(self, x):
+  #   """Helper to create summaries for activations.
+  #
+  #   Creates a summary that provides a histogram of activations.
+  #   Creates a summary that measure the sparsity of activations.
+  #
+  #   Args:
+  #     x: Tensor
+  #   Returns:
+  #     nothing
+  #   """
+  #   # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
+  #   # session. This helps the clarity of presentation on tensorboard.
+  #   # tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
+  #   tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
+  #   tf.histogram_summary(tensor_name + '/activations', x)
+  #   tf.scalar_summary(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
