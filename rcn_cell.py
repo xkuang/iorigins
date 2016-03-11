@@ -135,16 +135,18 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
   (cf. http://arxiv.org/pdf/1511.06432v4).
   """
 
-  def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size):
+  def __init__(self, hidden_size, hidden_prev_layer_size, input_width, input_height, input_size, kernel_size):
     """Initialize the parameters for an GRCU cell.
     Args:
       hidden_dim: int, The number of dimensions in the GRCU cell
+      hidden_prev_layer_size: int, The number of dimensions in the GRCU cell in the previous layer
       input_width: int, The width of the input map
       input_height: int, The height of the input map
       input_dim: int, The dimensionality of the inputs into the GRCU cell
     """
 
     self._hidden_size = hidden_size
+    self._hidden_prev_layer_size = hidden_prev_layer_size
     self._input_width = input_width
     self._input_height = input_height
     self._input_size = input_size
@@ -160,6 +162,9 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
       self.U_z = tf.get_variable(
             "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
+      self.W_z_l = tf.get_variable(
+            "W_z_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
 
       #reset gate kernels
       self.W_r = tf.get_variable(
@@ -167,6 +172,9 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
         initializer=initializer, dtype=dtype)
       self.U_r = tf.get_variable(
             "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+        initializer=initializer, dtype=dtype)
+      self.W_r_l = tf.get_variable(
+            "W_r_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
 
     #candidate gate kernels
@@ -202,22 +210,31 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
   def kernel_size(self):
     return self._kernel_size
 
-  def __call__(self, input_, state, scope=None):
+  def __call__(self, input_, state, state_prev_layer, scope=None):
     """Gated recurrent unit (GRU) with nunits cells."""
+    #max-pool previous layer hidden state
+    pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
+                         padding='SAME', name='pool-prev-layer')
 
     #convolution operations for update gate
     conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")
     # activation_summary(conv_W_z)
     conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
 
-    u = conv_W_z + conv_U_z
+    #convolution for the layer beneath update gate
+    conv_W_z_l = tf.nn.conv2d(pool_prev_layer, self.W_z_l, [1, 1, 1, 1], padding="SAME")
+
+    u = conv_W_z + conv_W_z_l + conv_U_z
     u = sigmoid(u)
 
     #convolution operations for reset gate
     conv_W_r = tf.nn.conv2d(input_, self.W_r, [1, 1, 1, 1], padding="SAME")
     conv_U_r = tf.nn.conv2d(state, self.U_r, [1, 1, 1, 1], padding="SAME")
 
-    r = conv_W_r + conv_U_r
+    #convolution for the layer beneath reset gate
+    conv_W_r_l = tf.nn.conv2d(pool_prev_layer, self.W_r_l, [1, 1, 1, 1], padding="SAME")
+
+    r = conv_W_r + conv_W_r_l + conv_U_r
     r = sigmoid(r)
 
     #convolution operations for candidate gate
