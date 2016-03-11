@@ -60,7 +60,7 @@ class Action_Recognizer():
     nr_training_examples = train_data.shape[0]
     train_data = self.shuffle_train_data(train_data)
 
-    current_batch_indices = random.sample(xrange(nr_training_examples), self.batch_size_train)
+    current_batch_indices = random.sample(xrange(nr_training_examples), 64)
     current_batch = train_data.ix[current_batch_indices]
 
     current_videos = current_batch['video_path'].values
@@ -74,21 +74,20 @@ class Action_Recognizer():
     shape = feat_maps_batch[4].shape
     feat_maps_batch[4] = np.reshape(feat_maps_batch[4], [shape[0], shape[1], 1, 1, shape[2]])
 
-    return feat_maps_batch, np.asarray(labels)
+    return feat_maps_batch, labels
 
 
-  def inference(self):
+  def inference(self, feat_map_batch):
     # feature map placeholders
-    feat_map_placeholders = []
-    for i, input_size in enumerate(self.input_sizes):
-      feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
-                                                               self.nr_frames,
-                                                               input_size[0],
-                                                               input_size[1],
-                                                               input_size[2]], name=("feat_map_%d" % i)))
-    #
+    # feat_map_placeholders = []
     # for i, input_size in enumerate(self.input_sizes):
-    #   feat_map_batch[i] = tf.convert_to_tensor(feat_map_batch[i])
+    #   feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
+    #                                                            self.nr_frames,
+    #                                                            input_size[0],
+    #                                                            input_size[1],
+    #                                                            input_size[2]], name=("feat_map_%d" % i)))
+    for i, input_size in enumerate(self.input_sizes):
+      feat_map_batch[i] = tf.convert_to_tensor(feat_map_batch[i])
 
     internal_states = []
     for grcu in self.grcu_list:
@@ -97,7 +96,8 @@ class Action_Recognizer():
 
     for j, grcu in enumerate(self.grcu_list):
       for i in range(self.nr_frames):
-        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
+        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_batch[j][:,i,:,:,:]), internal_states[j],
+                                     scope=("GRU-RCN%d" % (j)))
 
     for i, grcu in enumerate(self.grcu_list):
       internal_state = internal_states[i]
@@ -121,15 +121,14 @@ class Action_Recognizer():
 
       y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
     return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'),
-                      y, name='softmax_linear_average'), feat_map_placeholders
+                      y, name='softmax_linear_average')
 
 
-  def loss(self, logits):
-    labels_placeholder = tf.placeholder(tf.int64, [self.batch_size_train], name="labels")
+  def loss(self, logits, labels):
     # dense_labels = self.sparse_to_dense(labels)
 
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits, labels_placeholder, name='cross_entropy_per_example')
+      logits, labels, name='cross_entropy_per_example')
 
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
     tf.add_to_collection('losses', cross_entropy_mean)
@@ -138,11 +137,20 @@ class Action_Recognizer():
     # decay terms (L2 loss).
     total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
 
-    return total_loss, labels_placeholder
+    return total_loss
 
 
   def train(self, total_loss, global_step):
+    # nr_batches_per_epoch = self.nr_training_examples / self.batch_size_train
+    # decay_steps = int(nr_batches_per_epoch * self.nr_epochs_per_decay)
 
+    # Decay the learning rate exponentially based on the number of steps.
+    # lr = tf.train.exponential_decay(self.initial_learning_rate,
+    #                               global_step,
+    #                               1000,
+    #                               self.learning_rate_decay_factor,
+    #                               staircase=True)
+    # tf.scalar_summary('learning_rate', lr)
     tf.scalar_summary('learning_rate', self.initial_learning_rate)
 
     # Generate moving averages of all losses and associated summaries.
@@ -150,8 +158,11 @@ class Action_Recognizer():
 
     # Compute gradients
     with tf.control_dependencies([loss_averages_op]):
+      #TODO: Try RMSPropOptimizer sau AdaGrad sau Momentum
+      # opt = tf.train.GradientDescentOptimizer(lr)
       opt = tf.train.GradientDescentOptimizer(self.initial_learning_rate)
       # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
+      # opt = tf.train.RMSPropOptimizer(lr, 0.9)
       grads_and_vars = opt.compute_gradients(total_loss)
 
     # Apply gradients
