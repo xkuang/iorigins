@@ -162,9 +162,11 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
       self.U_z = tf.get_variable(
             "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
-      self.W_z_l = tf.get_variable(
-            "W_z_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
+
+      if self._hidden_prev_layer_size != -1:
+        self.W_z_l = tf.get_variable(
+              "W_z_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
+          initializer=initializer, dtype=dtype)
 
       #reset gate kernels
       self.W_r = tf.get_variable(
@@ -173,9 +175,11 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
       self.U_r = tf.get_variable(
             "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
-      self.W_r_l = tf.get_variable(
-            "W_r_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
+
+      if self._hidden_prev_layer_size != -1:
+        self.W_r_l = tf.get_variable(
+              "W_r_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
+          initializer=initializer, dtype=dtype)
 
     #candidate gate kernels
     with tf.variable_scope("Candidate"):
@@ -221,20 +225,30 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
     # activation_summary(conv_W_z)
     conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
 
-    #convolution for the layer beneath update gate
-    conv_W_z_l = tf.nn.conv2d(pool_prev_layer, self.W_z_l, [1, 1, 1, 1], padding="SAME")
+    if self._hidden_prev_layer_size != -1:
+      #convolution for the layer beneath update gate
+      conv_W_z_l = tf.nn.conv2d(pool_prev_layer, self.W_z_l, [1, 1, 1, 1], padding="SAME")
 
-    u = conv_W_z + conv_W_z_l + conv_U_z
+    if self._hidden_prev_layer_size != -1:
+      u = conv_W_z + conv_W_z_l + conv_U_z
+    else:
+      u = conv_W_z + conv_U_z
+
     u = sigmoid(u)
 
     #convolution operations for reset gate
     conv_W_r = tf.nn.conv2d(input_, self.W_r, [1, 1, 1, 1], padding="SAME")
     conv_U_r = tf.nn.conv2d(state, self.U_r, [1, 1, 1, 1], padding="SAME")
 
-    #convolution for the layer beneath reset gate
-    conv_W_r_l = tf.nn.conv2d(pool_prev_layer, self.W_r_l, [1, 1, 1, 1], padding="SAME")
+    if self._hidden_prev_layer_size != -1:
+      #convolution for the layer beneath reset gate
+      conv_W_r_l = tf.nn.conv2d(pool_prev_layer, self.W_r_l, [1, 1, 1, 1], padding="SAME")
 
-    r = conv_W_r + conv_W_r_l + conv_U_r
+    if self._hidden_prev_layer_size != -1:
+      r = conv_W_r + conv_W_r_l + conv_U_r
+    else:
+      r = conv_W_r + conv_U_r
+
     r = sigmoid(r)
 
     #convolution operations for candidate gate

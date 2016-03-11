@@ -1,4 +1,4 @@
-from rcn_cell import GRCUCell
+from rcn_cell import GRCUCell, StackedGRCUCell
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ class Action_Recognizer():
                input_sizes, hidden_sizes, batch_size_train, nr_frames,
                nr_feat_maps, nr_classes, keep_prob,
                nr_epochs_per_decay, moving_average_decay, initial_learning_rate,
-               learning_rate_decay_factor):
+               learning_rate_decay_factor, stacked=False):
     self.input_sizes = input_sizes
     self.hidden_sizes = hidden_sizes
     self.batch_size_train = batch_size_train
@@ -27,17 +27,34 @@ class Action_Recognizer():
     self.video_data_path = video_data_path
     self.feats_dir = feats_dir
     self.videos_dir = videos_dir
+    self.stacked = stacked
 
     self.grcu_list = []
 
     for i, hidden_layer_size in enumerate(self.hidden_sizes):
       with tf.variable_scope("GRU-RCN%d" % (i)):
         kernel = self.kernel_size if self.input_sizes[i][0] > self.kernel_size else self.input_sizes[i][0]
-        self.grcu_list.append(GRCUCell(hidden_layer_size,
-                                       self.input_sizes[i][0],
-                                       self.input_sizes[i][1],
-                                       self.input_sizes[i][2],
-                                       kernel))
+        if self.stacked:
+          if i == 0:
+            self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
+                                         -1,
+                                         self.input_sizes[i][0],
+                                         self.input_sizes[i][1],
+                                         self.input_sizes[i][2],
+                                         kernel))
+          else:
+            self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
+                                           self.hidden_sizes[i-1],
+                                           self.input_sizes[i][0],
+                                           self.input_sizes[i][1],
+                                           self.input_sizes[i][2],
+                                           kernel))
+        else:
+          self.grcu_list.append(GRCUCell(hidden_layer_size,
+                                         self.input_sizes[i][0],
+                                         self.input_sizes[i][1],
+                                         self.input_sizes[i][2],
+                                         kernel))
 
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
@@ -97,7 +114,16 @@ class Action_Recognizer():
 
     for j, grcu in enumerate(self.grcu_list):
       for i in range(self.nr_frames):
-        _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j], scope=("GRU-RCN%d" % (j)))
+        if self.stacked:
+          if j == 0:
+            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
+                                       None, scope=("GRU-RCN%d" % (j)))
+          else:
+            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
+                                       internal_states[j-1], scope=("GRU-RCN%d" % (j)))
+        else:
+          _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
+                                       scope=("GRU-RCN%d" % (j)))
 
     for i, grcu in enumerate(self.grcu_list):
       internal_state = internal_states[i]
