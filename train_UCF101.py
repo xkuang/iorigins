@@ -55,29 +55,26 @@ tf.app.flags.DEFINE_string('moving_average_decay', 0.9999,
                            """Moving average decay rate.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_boolean('gpu', True,
-                            """Bool var that indicates weather it should run on cpu or gpu.""")
+tf.app.flags.DEFINE_string('resume', True,
+                           """Variable to specify if the last model should be resumed or a new one created""")
 
 
-def train():
-
+def train(resume=False):
   model = Action_Recognizer(
-            video_data_path=FLAGS.video_data_path,
-            feats_dir=FLAGS.feats_dir,
-            videos_dir=FLAGS.videos_dir,
-            input_sizes=FLAGS.input_sizes,
-            hidden_sizes=FLAGS.hidden_sizes,
-            batch_size_train=FLAGS.batch_size_train,
-            nr_frames=FLAGS.nr_frames,
-            nr_feat_maps=FLAGS.nr_feat_maps,
-            nr_classes=FLAGS.nr_classes,
-            keep_prob=FLAGS.keep_prob,
-            nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
-            moving_average_decay=FLAGS.moving_average_decay,
-            initial_learning_rate=FLAGS.learning_rate,
-            learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
-
-
+          video_data_path=FLAGS.video_data_path,
+          feats_dir=FLAGS.feats_dir,
+          videos_dir=FLAGS.videos_dir,
+          input_sizes=FLAGS.input_sizes,
+          hidden_sizes=FLAGS.hidden_sizes,
+          batch_size_train=FLAGS.batch_size_train,
+          nr_frames=FLAGS.nr_frames,
+          nr_feat_maps=FLAGS.nr_feat_maps,
+          nr_classes=FLAGS.nr_classes,
+          keep_prob=FLAGS.keep_prob,
+        nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
+        moving_average_decay=FLAGS.moving_average_decay,
+        initial_learning_rate=FLAGS.learning_rate,
+        learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
 
   global_step = tf.Variable(0, trainable=False)
 
@@ -87,24 +84,43 @@ def train():
 
   train_op = model.train(loss, global_step)
 
-  # Create a saver.
-  saver = tf.train.Saver(tf.all_variables())
-
   # Build the summary operation based on the TF collection of Summaries.
   summary_op = tf.merge_all_summaries()
 
-  # Build an initialization operation to run below.
-  init = tf.initialize_all_variables()
+  # Create a saver.
+  saver = tf.train.Saver(tf.all_variables())
 
-  # Start running operations on the Graph.
-  sess = tf.Session(config=tf.ConfigProto(
-        log_device_placement=FLAGS.log_device_placement))
-  sess.run(init)
+  if not resume:
+
+    # Build an initialization operation to run below.
+    init = tf.initialize_all_variables()
+
+    # Start running operations on the Graph.
+    sess = tf.Session(config=tf.ConfigProto(
+          log_device_placement=FLAGS.log_device_placement))
+    sess.run(init)
+
+  else:
+    with tf.Session() as sess:
+      ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
+      if ckpt and ckpt.model_checkpoint_path:
+        # Restores from checkpoint
+
+        saver.restore(sess, ckpt.model_checkpoint_path)
+
+        # Assuming model_checkpoint_path looks something like:
+        #   /my-favorite-path/cifar10_train/model.ckpt-0,
+        # extract global_step from it.
+
+        global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
+
+      else:
+        print('No checkpoint file found. Cannot resume.')
+        return
 
   graph_def = sess.graph.as_graph_def(add_shapes=True)
   summary_writer = tf.train.SummaryWriter(FLAGS.train_dir,
                                           graph_def=graph_def)
-
   for step in xrange(FLAGS.max_steps):
     feat_maps_batch, labels = model.get_batch()
     dict = {i: d for i, d in zip(feat_map_placeholders, feat_maps_batch)}
@@ -139,10 +155,13 @@ def train():
 
 
 def main(_):
-  if tf.gfile.Exists(FLAGS.train_dir):
-    tf.gfile.DeleteRecursively(FLAGS.train_dir)
-  tf.gfile.MakeDirs(FLAGS.train_dir)
-  train()
+  if FLAGS.resume:
+    train(FLAGS.resume)
+  else:
+    if tf.gfile.Exists(FLAGS.train_dir):
+      tf.gfile.DeleteRecursively(FLAGS.train_dir)
+    tf.gfile.MakeDirs(FLAGS.train_dir)
+    train()
 
 if __name__ == '__main__':
   tf.app.run()

@@ -2,131 +2,65 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
-from model_MSVD import Spatio_Temporal_Generator
+from model_MSVD import Video_Caption_Generator
 from utils import load_pkl
 
 FLAGS = tf.app.flags.FLAGS
+tf.app.flags.DEFINE_string('train_dir', './train_MSVD',
+                           """Directory where to write event logs """
+                           """and checkpoint.""")
 tf.app.flags.DEFINE_string('video_data_path', './data/video_corpus.csv',
                            """path to video corpus""")
 
-tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/media',
+tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/MSVD',
                            """youtube clips path""")
 
-tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats',
+tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats_MSVD',
                            """youtube features path""")
 
-tf.app.flags.DEFINE_string('index_to_word_dir', '/media/ioana/Elements/index_to_word',
+tf.app.flags.DEFINE_string('index_to_word_path', '/media/ioana/Elements/index_to_word_MSVD/dict.npy',
                            """index_to_word dictionary path""")
 
 tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
                                             [28, 28, 256],
-                                            [80, 14, 14, 512],
-                                            [80,  7,  7, 512]],
+                                            [14, 14, 512],
+                                            [7,  7, 512],
+                                            [1, 1, 4096]],
                            """the size of the input image/frame""")
 tf.app.flags.DEFINE_string('hidden_sizes', [64, 128, 256, 256, 512],
                            """youtube features path""")
-tf.app.flags.DEFINE_string('batch_size_train', 1,
+tf.app.flags.DEFINE_string('batch_size_train', 16,
                            """Nr of batches""")
-tf.app.flags.DEFINE_string('nr_frames', 80,
-                           """Nr of sample frames at equally-space intervals.""")
+tf.app.flags.DEFINE_string('nr_frames', 10,
+                           """Nr of sample frames at equally-space segments.""")
+tf.app.flags.DEFINE_string('nr_segments', 5,
+                           """Nr of segments to sample frames from.""")
 tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """Nr of feature maps extracted from the inception CNN for each frame.""")
-tf.app.flags.DEFINE_string('nr_epochs', 1,
+tf.app.flags.DEFINE_string('max_steps', 1000,
                            """Nr of epochs to train.""")
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
                            """Model's learning rate.""")
 
-
-def get_video_data(train_ratio=0.9):
-    video_data = pd.read_csv(FLAGS.video_data_path, sep=',')
-    video_data = video_data[video_data['Language'] == 'English']
-    video_data['video_path'] = video_data.apply(lambda row: row['VideoID']+'_'+str(row['Start'])+'_'+str(row['End'])+'.avi.pkl', axis=1)
-    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(FLAGS.feats_dir, x))
-    video_data = video_data[video_data['video_path'].map(lambda x: os.path.exists( x ))]
-    video_data = video_data[video_data['Description'].map(lambda x: isinstance(x, str))]
-
-    unique_filenames = video_data['video_path'].unique()
-    train_len = int(len(unique_filenames)*train_ratio)
-
-    train_vids = unique_filenames[:train_len]
-    test_vids = unique_filenames[train_len:]
-
-    train_data = video_data[video_data['video_path'].map(lambda x: x in train_vids)]
-    test_data = video_data[video_data['video_path'].map(lambda x: x in test_vids)]
-
-    return train_data, test_data
-
-
-def create_vocab(captions, word_count_threshold=5): # borrowed this function from NeuralTalk
-    print 'preprocessing word counts and creating vocab based on word count threshold %d' % (word_count_threshold, )
-    word_counts = {}
-    nr_captions = 0
-    for caption in captions:
-        nr_captions += 1
-        for word in caption.lower().split(' '):
-           word_counts[word] = word_counts.get(word, 0) + 1
-
-    vocab = [word for word in word_counts if word_counts[word] >= word_count_threshold]
-    print 'filtered words from %d to %d' % (len(word_counts), len(vocab))
-
-    index_to_word = {}
-    index_to_word[0] = '.'  # period at the end of the sentence. make first dimension be end token
-    word_to_index = {}
-    word_to_index['#START#'] = 0 # make first vector be the start token
-    index = 1
-    for word in vocab:
-        word_to_index[word] = index
-        index_to_word[index] = word
-        index += 1
-
-    word_counts['.'] = nr_captions
-    bias_init_vector = np.array([1.0 * word_counts[index_to_word[index]] for index in index_to_word])
-    bias_init_vector /= np.sum(bias_init_vector) # normalize to frequencies
-    bias_init_vector = np.log(bias_init_vector)
-    bias_init_vector -= np.max(bias_init_vector) # shift to nice numeric range
-    return word_to_index, index_to_word, bias_init_vector
-
-
 def train():
-  train_data, _ = get_video_data()
-  captions = train_data['Description'].values
-  captions = map(lambda x: x.replace('.', ''), captions)
-  captions = map(lambda x: x.replace(',', ''), captions)
-  word_to_index, index_to_word, bias_init_vector = create_vocab(captions, word_count_threshold=10)
 
-  np.save(FLAGS.index_to_word_dir, index_to_word)
-
-  model = Spatio_Temporal_Generator(
+  model = Video_Caption_Generator(
+            video_data_path=FLAGS.video_data_path,
+            feats_dir=FLAGS.feats_dir,
+            videos_dir=FLAGS.videos_dir,
+            index_to_word_path=FLAGS.index_to_word_path,
             input_sizes=FLAGS.input_sizes,
-            nr_words=len(word_to_index),
             hidden_sizes=FLAGS.hidden_sizes,
             batch_size_train=FLAGS.batch_size_train,
             nr_frames=FLAGS.nr_frames,
             nr_feat_maps=FLAGS.nr_feat_maps,
-            bias_init_vector=bias_init_vector)
+            nr_classes=FLAGS.nr_classes,
+            keep_prob=FLAGS.keep_prob,
+            nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
+            moving_average_decay=FLAGS.moving_average_decay,
+            initial_learning_rate=FLAGS.learning_rate,
+            learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
 
-  for epoch in range(FLAGS.nr_epochs):
-    print ("epoch %d", epoch)
-    index = list(train_data.index)
-    np.random.shuffle(index)
-    train_data = train_data.ix[index]
-
-    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
-    current_train_data = current_train_data.reset_index(drop=True)
-
-    for start, end in zip(
-        range(0, len(current_train_data), FLAGS.batch_size_train),
-        range(FLAGS.batch_size_train, len(current_train_data), FLAGS.batch_size_train)):
-
-      current_batch = current_train_data[start:end]
-      current_videos = current_batch['video_path'].values
-
-      # current_feats = np.zeros((FLAGS.batch_size_train, FLAGS.nr_frames, dim_image))
-      current_feats_vals = map(lambda vid: load_pkl(vid), current_videos)
-
-      video_feats = current_feats_vals[0]
-      print ("nr frames for vid id %s : %d" % (current_batch['VideoID'].values[0], len(video_feats)))
-      # current_video_masks = np.zeros((batch_size, n_frame_step))
 
 def main(_):
   train()

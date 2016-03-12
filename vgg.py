@@ -4,7 +4,9 @@ import numpy as np
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('vgg_model_dir', "./model/vgg16.tfmodel",
+# tf.app.flags.DEFINE_string('vgg_model_dir', "./model/vgg16.tfmodel",
+#                            """Path to the model needed to create the graph.""")
+tf.app.flags.DEFINE_string('vgg_model_dir', "./model/vgg16_action_rec.tfmodel",
                            """Path to the model needed to create the graph.""")
 
 class VGG(object):
