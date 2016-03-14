@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import skimage
 import tensorflow as tf
-from download_cnn import Inception
+from inception import Inception
 from vgg import VGG
 from utils import dump_pkl
 
@@ -33,9 +33,13 @@ tf.app.flags.DEFINE_string('nr_feat_maps', 5,
                            """the number of feature maps to get from the cnn""")
 tf.app.flags.DEFINE_string('tensor_names', ["import/pool2:0", "import/pool3:0", "import/pool4:0", "import/pool5:0", "import/Relu_1:0"],
                            """the names of the tensors to run in the vgg network""")
-tf.app.flags.DEFINE_string('train_test_split', './ucfTrainTestlist/trainlist01.txt',
+tf.app.flags.DEFINE_string('train_list', './ucfTrainTestlist/trainlist01.txt',
+                           """file where the train-test split info resides""")
+tf.app.flags.DEFINE_string('test_list', './ucfTrainTestlist/trainlist02.txt',
                            """file where the train-test split info resides""")
 tf.app.flags.DEFINE_string('train_data_file', './ucfTrainTestlist/train_data.csv',
+                           """file where the train-test split info resides""")
+tf.app.flags.DEFINE_string('test_data_file', './ucfTrainTestlist/test_data.csv',
                            """file where the train-test split info resides""")
 tf.app.flags.DEFINE_string('cropping_sizes', [240, 224, 192, 168],
                            """the cropping sizes to randomly sample from""")
@@ -78,10 +82,8 @@ def process_record(cnn, data):
 
   cropped_frame_list = np.array(map(lambda x: cnn.preprocess_frame(FLAGS.cropping_sizes, x), frame_list))
   feats = cnn.get_features(cropped_frame_list)
-  # feats_stacked = np.row_stack(feats)
   save_full_path = os.path.join(FLAGS.feats_dir, data['feat_path'])
   dump_pkl(feats, save_full_path)
-  # np.save(save_full_path, feats_stacked)
 
 def main():
   if FLAGS.cnn_type == 'inception':
@@ -90,11 +92,25 @@ def main():
     cnn = VGG(FLAGS.nr_feat_maps, FLAGS.tensor_names, FLAGS.image_size)
     # cnn.printTensors()
 
+  dict_test = {}
+  dict_test["video_path"] = []
+  dict_test["label"] = []
+  with open(FLAGS.test_list) as f:
+    for line in f:
+      video_path, label = line.split()
+      dict_test["video_path"].append(video_path)
+      dict_test["label"].append(label)
+
+  test_data = pd.DataFrame(data=dict_test, columns=['video_path', 'label'])
+
+  if not os.path.exists (FLAGS.test_data_file):
+    test_data.to_csv(FLAGS.test_data_file, sep=',')
+
   dict = {}
   dict["video_path"] = []
   dict["label"] = []
   dict["feat_path"] = []
-  with open(FLAGS.train_test_split) as f:
+  with open(FLAGS.train_list) as f:
     for line in f:
       video_path, label = line.split()
       dict["video_path"].append(video_path)

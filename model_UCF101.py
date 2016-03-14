@@ -5,29 +5,35 @@ import pandas as pd
 import os
 import random
 from utils import load_pkl
+from vgg import VGG
+import cv2
 
 class Action_Recognizer():
-  def __init__(self, video_data_path, feats_dir, videos_dir,
-               input_sizes, hidden_sizes, batch_size_train, nr_frames,
+  def __init__(self, video_data_path, test_data_path, feats_dir, videos_dir,
+               input_sizes, hidden_sizes, batch_size_train, batch_size_test, nr_frames,
                nr_feat_maps, nr_classes, keep_prob,
-               nr_epochs_per_decay, moving_average_decay, initial_learning_rate,
-               learning_rate_decay_factor, stacked=False):
+               moving_average_decay, initial_learning_rate, tensor_names,
+               image_size, test_segments, cropping_sizes,
+               stacked=True):
     self.input_sizes = input_sizes
     self.hidden_sizes = hidden_sizes
     self.batch_size_train = batch_size_train
+    self.batch_size_test = batch_size_test
     self.nr_frames = nr_frames
     self.nr_feat_maps = nr_feat_maps
     self.kernel_size = 3
     self.nr_classes = nr_classes
     self.keep_prob = keep_prob
-    self.nr_epochs_per_decay = nr_epochs_per_decay
     self.moving_average_decay = moving_average_decay
     self.initial_learning_rate = initial_learning_rate
-    self.learning_rate_decay_factor = learning_rate_decay_factor
     self.video_data_path = video_data_path
+    self.test_data_path = test_data_path
     self.feats_dir = feats_dir
     self.videos_dir = videos_dir
+    self.cnn = VGG(nr_feat_maps, tensor_names, image_size)
+    self.test_segments = test_segments
     self.stacked = stacked
+    self.cropping_sizes = cropping_sizes
 
     self.grcu_list = []
 
@@ -72,6 +78,13 @@ class Action_Recognizer():
     return video_data
 
 
+  def get_test_data(self):
+    video_data = pd.read_csv(self.test_data_path, sep=',')
+    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self.videos_dir, x))
+
+    return video_data
+
+
   def get_batch(self):
     train_data = self.get_video_data()
     nr_training_examples = train_data.shape[0]
@@ -94,11 +107,79 @@ class Action_Recognizer():
     return feat_maps_batch, np.asarray(labels)
 
 
-  def inference(self):
+  def get_test_batch(self):
+    test_data = self.get_test_data()
+    nr_testing_examples = test_data.shape[0]
+    current_batch_indices = random.sample(xrange(nr_testing_examples), self.batch_size_test)
+    current_batch = test_data.ix[current_batch_indices]
+
+    current_videos = current_batch['video_path'].values
+    labels = current_batch['label'].values
+
+    current_feats_vals = map(lambda vid: self.get_test_features(vid), current_videos)
+    feat_maps_batch_segments = zip(*current_feats_vals)
+
+    feat_maps_batch_segments = map(lambda segment: zip(*segment), feat_maps_batch_segments)
+    feat_maps_batch_segments = map(lambda segment: map(lambda feat: np.asarray(feat), segment), feat_maps_batch_segments)
+    # feat_maps_batch_segments = map( lambda batch: map(lambda segment: map(lambda feat_map: np.asarray(feat_map), segment),
+    #                                feat_maps_batch_segments)
+
+    return feat_maps_batch_segments, np.asarray(labels)
+
+
+  def get_test_features(self, vid):
+    try:
+      cap = cv2.VideoCapture (vid)
+    except:
+      print ("Cant open video capture")
+
+    frame_count = 0
+    frame_list = []
+
+    while True:
+      # Capture frame-by-frame
+      ret, frame = cap.read()
+
+      if ret is False:
+          break
+
+      frame_list.append(frame)
+      frame_count += 1
+
+    if frame_count == 0:
+      print "This video could not be processed"
+      return
+
+    frame_list = np.array(frame_list)
+
+    if frame_count < self.test_segments * self.nr_frames:
+      print ("This video is too short. It has %d frames" % frame_count)
+
+    segment_indices = np.linspace(0, frame_count, num=self.test_segments, endpoint=False).astype(int)
+
+    segment_list = []
+    for segment_idx in segment_indices:
+      segment_frames = frame_list[segment_idx : (segment_idx + self.nr_frames)]
+      cropped_segment_frames = np.array(map(lambda x: self.cnn.preprocess_frame(self.cropping_sizes, x), segment_frames))
+      segment_feats = self.cnn.get_features(cropped_segment_frames)
+      shape = segment_feats[4].shape
+      segment_feats[4] = np.reshape(segment_feats[4], [shape[0], 1, 1, shape[1]])
+      segment_list.append(segment_feats)
+
+    return segment_list
+
+
+  def inference(self, test=False):
+    if test:
+      batch_size = self.batch_size_test
+    else:
+      batch_size = self.batch_size_train
+
+
     # feature map placeholders
     feat_map_placeholders = []
     for i, input_size in enumerate(self.input_sizes):
-      feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
+      feat_map_placeholders.append(tf.placeholder(tf.float32, [batch_size,
                                                                self.nr_frames,
                                                                input_size[0],
                                                                input_size[1],
@@ -109,7 +190,7 @@ class Action_Recognizer():
 
     internal_states = []
     for grcu in self.grcu_list:
-      state_size = [self.batch_size_train, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
+      state_size = [batch_size, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
       internal_states.append(tf.zeros(state_size))
 
     for j, grcu in enumerate(self.grcu_list):
@@ -117,10 +198,10 @@ class Action_Recognizer():
         if self.stacked:
           if j == 0:
             _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       None, scope=("GRU-RCN%d" % (j)))
+                                       None, scope=("StackedGRU-RCN%d" % (j)))
           else:
             _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       internal_states[j-1], scope=("GRU-RCN%d" % (j)))
+                                       internal_states[j-1], scope=("StackedGRU-RCN%d" % (j)))
         else:
           _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
                                        scope=("GRU-RCN%d" % (j)))

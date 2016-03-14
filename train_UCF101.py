@@ -14,16 +14,17 @@ tf.app.flags.DEFINE_string('train_dir', './train_UCF101',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv',
                            """path to video corpus""")
-
-# tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
-#                            """youtube clips path""")
-tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
+tf.app.flags.DEFINE_string('test_data_path', './ucfTrainTestlist/test_data.csv',
+                           """path to video corpus""")
+tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
                            """youtube clips path""")
+# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
+#                            """youtube clips path""")
 
-# tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
-#                            """youtube features path""")
-tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
+tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
                            """youtube features path""")
+# tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
+#                            """youtube features path""")
 
 tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
                                             [28, 28, 256],
@@ -34,6 +35,8 @@ tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
 tf.app.flags.DEFINE_string('hidden_sizes', [64, 128, 256, 256, 512],
                            """youtube features path""")
 tf.app.flags.DEFINE_string('batch_size_train', 16,
+                           """Nr of batches""")
+tf.app.flags.DEFINE_string('batch_size_test', 16,
                            """Nr of batches""")
 tf.app.flags.DEFINE_string('nr_frames', 10,
                            """Nr of sample frames at equally-space intervals.""")
@@ -55,26 +58,37 @@ tf.app.flags.DEFINE_string('moving_average_decay', 0.9999,
                            """Moving average decay rate.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('resume', True,
+tf.app.flags.DEFINE_string('resume', False,
                            """Variable to specify if the last model should be resumed or a new one created""")
-
+tf.app.flags.DEFINE_string('image_size', 224,
+                           """the size of the image that goes into the VGG net""")
+tf.app.flags.DEFINE_string('tensor_names', ["import/pool2:0", "import/pool3:0", "import/pool4:0", "import/pool5:0", "import/Relu_1:0"],
+                           """the names of the tensors to run in the vgg network""")
+tf.app.flags.DEFINE_string('test_segments', 25,
+                           """The number of segments to extract 10 frames to test from""")
+tf.app.flags.DEFINE_string('cropping_sizes', [240, 224, 192, 168],
+                           """the cropping sizes to randomly sample from""")
 
 def train(resume=False):
   model = Action_Recognizer(
           video_data_path=FLAGS.video_data_path,
+          test_data_path=FLAGS.test_data_path,
           feats_dir=FLAGS.feats_dir,
           videos_dir=FLAGS.videos_dir,
           input_sizes=FLAGS.input_sizes,
           hidden_sizes=FLAGS.hidden_sizes,
           batch_size_train=FLAGS.batch_size_train,
+          batch_size_test=FLAGS.batch_size_test,
           nr_frames=FLAGS.nr_frames,
           nr_feat_maps=FLAGS.nr_feat_maps,
           nr_classes=FLAGS.nr_classes,
           keep_prob=FLAGS.keep_prob,
-        nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
-        moving_average_decay=FLAGS.moving_average_decay,
-        initial_learning_rate=FLAGS.learning_rate,
-        learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
+          moving_average_decay=FLAGS.moving_average_decay,
+          initial_learning_rate=FLAGS.learning_rate,
+          tensor_names=FLAGS.tensor_names,
+          image_size=FLAGS.image_size,
+          test_segments=FLAGS.test_segments,
+          cropping_sizes=FLAGS.cropping_sizes)
 
   global_step = tf.Variable(0, trainable=False)
 
@@ -91,7 +105,6 @@ def train(resume=False):
   saver = tf.train.Saver(tf.all_variables())
 
   if not resume:
-
     # Build an initialization operation to run below.
     init = tf.initialize_all_variables()
 

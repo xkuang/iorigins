@@ -16,7 +16,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
   (cf. http://arxiv.org/pdf/1511.06432v4).
   """
 
-  def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size):
+  def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size, scope):
     """Initialize the parameters for an GRCU cell.
     Args:
       hidden_dim: int, The number of dimensions in the GRCU cell
@@ -34,7 +34,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
     dtype = tf.float32
     initializer = tf.truncated_normal_initializer(stddev=1e-4)
     #update gate kernels
-    with tf.variable_scope("Gates"):
+    with tf.variable_scope(scope + "/Gates", reuse=True):
       self.W_z = tf.get_variable(
             "W_z", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
@@ -51,7 +51,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
         initializer=initializer, dtype=dtype)
 
     #candidate gate kernels
-    with tf.variable_scope("Candidate"):
+    with tf.variable_scope(scope + "/Candidate", reuse=True):
       self.W = tf.get_variable(
                 "W", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
         initializer=initializer, dtype=dtype)
@@ -216,9 +216,15 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
 
   def __call__(self, input_, state, state_prev_layer, scope=None):
     """Gated recurrent unit (GRU) with nunits cells."""
-    #max-pool previous layer hidden state
-    pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
-                         padding='SAME', name='pool-prev-layer')
+
+    if self._hidden_prev_layer_size != -1:
+      #max-pool previous layer hidden state
+      if state_prev_layer.get_shape()[1].value / state.get_shape()[1].value == 2:
+        pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
+                             padding='SAME', name='pool-prev-layer')
+      else:
+        pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1],
+                             padding='SAME', name='pool-prev-layer')
 
     #convolution operations for update gate
     conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")

@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import tensorflow as tf
 import numpy as np
+from model_UCF101 import Action_Recognizer
 from model_MSVD import Video_Caption_Generator
 from utils import load_pkl
 
@@ -42,24 +43,66 @@ tf.app.flags.DEFINE_string('max_steps', 1000,
 tf.app.flags.DEFINE_string('learning_rate', 0.001,
                            """Model's learning rate.""")
 
+
+def train_MSVD(saver, summary_writer, summary_op, model_action_rec):
+  # Calculate predictions.
+  logits_action_rec, feat_map_placeholders = model_action_rec.inference()
+  model = Video_Caption_Generator
+
+
 def train():
 
-  model = Video_Caption_Generator(
-            video_data_path=FLAGS.video_data_path,
-            feats_dir=FLAGS.feats_dir,
-            videos_dir=FLAGS.videos_dir,
-            index_to_word_path=FLAGS.index_to_word_path,
-            input_sizes=FLAGS.input_sizes,
-            hidden_sizes=FLAGS.hidden_sizes,
-            batch_size_train=FLAGS.batch_size_train,
-            nr_frames=FLAGS.nr_frames,
-            nr_feat_maps=FLAGS.nr_feat_maps,
-            nr_classes=FLAGS.nr_classes,
-            keep_prob=FLAGS.keep_prob,
-            nr_epochs_per_decay=FLAGS.nr_epochs_per_decay,
-            moving_average_decay=FLAGS.moving_average_decay,
-            initial_learning_rate=FLAGS.learning_rate,
-            learning_rate_decay_factor=FLAGS.learning_rate_decay_factor)
+  # model = Video_Caption_Generator(
+  #           video_data_path=FLAGS.video_data_path,
+  #           feats_dir=FLAGS.feats_dir,
+  #           videos_dir=FLAGS.videos_dir,
+  #           index_to_word_path=FLAGS.index_to_word_path,
+  #           input_sizes=FLAGS.input_sizes,
+  #           hidden_sizes=FLAGS.hidden_sizes,
+  #           batch_size_train=FLAGS.batch_size_train,
+  #           nr_frames=FLAGS.nr_frames,
+  #           nr_feat_maps=FLAGS.nr_feat_maps,
+  #           nr_classes=FLAGS.nr_classes,
+  #           keep_prob=FLAGS.keep_prob,
+  #           moving_average_decay=FLAGS.moving_average_decay,
+  #           initial_learning_rate=FLAGS.learning_rate)
+
+  model = Action_Recognizer(
+          video_data_path=FLAGS.video_data_path,
+          test_data_path=FLAGS.test_data_path,
+          feats_dir=FLAGS.feats_dir,
+          videos_dir=FLAGS.videos_dir,
+          input_sizes=FLAGS.input_sizes,
+          hidden_sizes=FLAGS.hidden_sizes,
+          batch_size_train=FLAGS.batch_size_train,
+          batch_size_test=FLAGS.batch_size_test,
+          nr_frames=FLAGS.nr_frames,
+          nr_feat_maps=FLAGS.nr_feat_maps,
+          nr_classes=FLAGS.nr_classes,
+          keep_prob=FLAGS.keep_prob,
+          moving_average_decay=FLAGS.moving_average_decay,
+          initial_learning_rate=FLAGS.learning_rate,
+          tensor_names=FLAGS.tensor_names,
+          image_size=FLAGS.image_size,
+          test_segments=FLAGS.test_segments,
+          cropping_sizes=FLAGS.cropping_sizes)
+
+
+
+  # Restore the moving average version of the learned variables for eval.
+  variable_averages = tf.train.ExponentialMovingAverage(
+      FLAGS.moving_average_decay)
+  variables_to_restore = variable_averages.variables_to_restore()
+  saver = tf.train.Saver(variables_to_restore)
+
+  # Build the summary operation based on the TF collection of Summaries.
+  summary_op = tf.merge_all_summaries()
+
+  graph_def = tf.get_default_graph().as_graph_def(add_shapes=True)
+  summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir,
+                                          graph_def=graph_def)
+
+  train_MSVD (saver, summary_writer, summary_op, model)
 
 
 def main(_):

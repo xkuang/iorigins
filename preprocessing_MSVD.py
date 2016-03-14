@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import skimage
 import tensorflow as tf
-from download_cnn import Inception
+from inception import Inception
 from vgg import VGG
 from utils import dump_pkl
 
