@@ -7,88 +7,10 @@ from utils import load_pkl
 import random
 import time
 from datetime import datetime
+from video_config import VideoConfig
 
-FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('train_dir', './train_UCF101',
-                           """Directory where to write event logs """
-                           """and checkpoint.""")
-tf.app.flags.DEFINE_string('video_data_path', './ucfTrainTestlist/train_data.csv',
-                           """path to video corpus""")
-tf.app.flags.DEFINE_string('test_data_path', './ucfTrainTestlist/test_data.csv',
-                           """path to video corpus""")
-tf.app.flags.DEFINE_string('videos_dir', './UCF-101',
-                           """youtube clips path""")
-# tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/7ED0-6463/UCF-101',
-#                            """youtube clips path""")
-
-tf.app.flags.DEFINE_string('feats_dir', './feats_ucf',
-                           """youtube features path""")
-# tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/7ED0-6463/feats_ucf',
-#                            """youtube features path""")
-
-tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
-                                            [28, 28, 256],
-                                            [14, 14, 512],
-                                            [7,  7, 512],
-                                            [1, 1, 4096]],
-                           """the size of the input image/frame""")
-tf.app.flags.DEFINE_string('hidden_sizes', [64, 128, 256, 256, 512],
-                           """youtube features path""")
-tf.app.flags.DEFINE_string('batch_size_train', 16,
-                           """Nr of batches""")
-tf.app.flags.DEFINE_string('batch_size_test', 16,
-                           """Nr of batches""")
-tf.app.flags.DEFINE_string('nr_frames', 10,
-                           """Nr of sample frames at equally-space intervals.""")
-tf.app.flags.DEFINE_string('nr_classes', 101,
-                           """Nr of classes.""")
-tf.app.flags.DEFINE_string('nr_feat_maps', 5,
-                           """Nr of feature maps extracted from the inception CNN for each frame.""")
-tf.app.flags.DEFINE_string('max_steps', 1000,
-                           """Nr of epochs to train.""")
-tf.app.flags.DEFINE_string('learning_rate', 0.001,
-                           """Model's learning rate.""")
-tf.app.flags.DEFINE_string('learning_rate_decay_factor', 0.6,
-                           """Model's learning rate decay factor.""")
-tf.app.flags.DEFINE_string('keep_prob', 0.7,
-                           """Dropout ration for the last layer of the classifiers.""")
-tf.app.flags.DEFINE_string('nr_epochs_per_decay', 350,
-                           """Number of epochs per decay of the learning rate.""")
-tf.app.flags.DEFINE_string('moving_average_decay', 0.9999,
-                           """Moving average decay rate.""")
-tf.app.flags.DEFINE_boolean('log_device_placement', False,
-                            """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('resume', False,
-                           """Variable to specify if the last model should be resumed or a new one created""")
-tf.app.flags.DEFINE_string('image_size', 224,
-                           """the size of the image that goes into the VGG net""")
-tf.app.flags.DEFINE_string('tensor_names', ["import/pool2:0", "import/pool3:0", "import/pool4:0", "import/pool5:0", "import/Relu_1:0"],
-                           """the names of the tensors to run in the vgg network""")
-tf.app.flags.DEFINE_string('test_segments', 25,
-                           """The number of segments to extract 10 frames to test from""")
-tf.app.flags.DEFINE_string('cropping_sizes', [240, 224, 192, 168],
-                           """the cropping sizes to randomly sample from""")
-
-def train(resume=False):
-  model = Action_Recognizer(
-          video_data_path=FLAGS.video_data_path,
-          test_data_path=FLAGS.test_data_path,
-          feats_dir=FLAGS.feats_dir,
-          videos_dir=FLAGS.videos_dir,
-          input_sizes=FLAGS.input_sizes,
-          hidden_sizes=FLAGS.hidden_sizes,
-          batch_size_train=FLAGS.batch_size_train,
-          batch_size_test=FLAGS.batch_size_test,
-          nr_frames=FLAGS.nr_frames,
-          nr_feat_maps=FLAGS.nr_feat_maps,
-          nr_classes=FLAGS.nr_classes,
-          keep_prob=FLAGS.keep_prob,
-          moving_average_decay=FLAGS.moving_average_decay,
-          initial_learning_rate=FLAGS.learning_rate,
-          tensor_names=FLAGS.tensor_names,
-          image_size=FLAGS.image_size,
-          test_segments=FLAGS.test_segments,
-          cropping_sizes=FLAGS.cropping_sizes)
+def train(config):
+  model = Action_Recognizer(config)
 
   global_step = tf.Variable(0, trainable=False)
 
@@ -102,20 +24,20 @@ def train(resume=False):
   summary_op = tf.merge_all_summaries()
 
   # Create a saver.
-  saver = tf.train.Saver(tf.all_variables())
+  saver = tf.train.Saver()
 
-  if not resume:
+  if not config.resume:
     # Build an initialization operation to run below.
     init = tf.initialize_all_variables()
 
     # Start running operations on the Graph.
     sess = tf.Session(config=tf.ConfigProto(
-          log_device_placement=FLAGS.log_device_placement))
+          log_device_placement=config.log_device_placement))
     sess.run(init)
 
   else:
     with tf.Session() as sess:
-      ckpt = tf.train.get_checkpoint_state(FLAGS.train_dir)
+      ckpt = tf.train.get_checkpoint_state(config.train_dir)
       if ckpt and ckpt.model_checkpoint_path:
         # Restores from checkpoint
 
@@ -132,9 +54,9 @@ def train(resume=False):
         return
 
   graph_def = sess.graph.as_graph_def(add_shapes=True)
-  summary_writer = tf.train.SummaryWriter(FLAGS.train_dir,
+  summary_writer = tf.train.SummaryWriter(config.train_dir,
                                           graph_def=graph_def)
-  for step in xrange(FLAGS.max_steps):
+  for step in xrange(config.max_steps):
     feat_maps_batch, labels = model.get_batch()
     dict = {i: d for i, d in zip(feat_map_placeholders, feat_maps_batch)}
     dict[labels_placeholder] = labels
@@ -147,34 +69,33 @@ def train(resume=False):
 
     assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
-    if step % 10 == 0:
-      num_examples_per_step = FLAGS.batch_size_train
-      examples_per_sec = num_examples_per_step / duration
-      sec_per_batch = float(duration)
+    # if step % 10 == 0:
+    num_examples_per_step = config.batch_size_train
+    examples_per_sec = num_examples_per_step / duration
+    sec_per_batch = float(duration)
 
-      format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
-                    'sec/batch)')
-      print (format_str % (datetime.now(), step, loss_value,
-                           examples_per_sec, sec_per_batch))
+    format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+                  'sec/batch)')
+    print (format_str % (datetime.now(), step, loss_value,
+                         examples_per_sec, sec_per_batch))
 
-    if step % 100 == 0:
-      summary_str = sess.run(summary_op, feed_dict=dict)
-      summary_writer.add_summary(summary_str, step)
+    # if step % 100 == 0:
+    summary_str = sess.run(summary_op, feed_dict=dict)
+    summary_writer.add_summary(summary_str, step)
 
-      # Save the model checkpoint periodically.
-      if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-        checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
-        saver.save(sess, checkpoint_path, global_step=step)
+    # Save the model checkpoint periodically.
+    # if step % 1000 == 0 or (step + 1) == config.max_steps:
+    checkpoint_path = os.path.join(config.train_dir, 'model.ckpt')
+    saver.save(sess, checkpoint_path, global_step=step)
 
 
 def main(_):
-  if FLAGS.resume:
-    train(FLAGS.resume)
-  else:
-    if tf.gfile.Exists(FLAGS.train_dir):
-      tf.gfile.DeleteRecursively(FLAGS.train_dir)
-    tf.gfile.MakeDirs(FLAGS.train_dir)
-    train()
+  config = VideoConfig()
+  if not config.resume:
+    if tf.gfile.Exists(config.train_dir):
+      tf.gfile.DeleteRecursively(config.train_dir)
+    tf.gfile.MakeDirs(config.train_dir)
+  train(config)
 
 if __name__ == '__main__':
   tf.app.run()

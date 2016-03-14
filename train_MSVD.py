@@ -19,8 +19,8 @@ tf.app.flags.DEFINE_string('videos_dir', '/media/ioana/Elements/MSVD',
 tf.app.flags.DEFINE_string('feats_dir', '/media/ioana/Elements/feats_MSVD',
                            """youtube features path""")
 
-tf.app.flags.DEFINE_string('index_to_word_path', '/media/ioana/Elements/index_to_word_MSVD/dict.npy',
-                           """index_to_word dictionary path""")
+# tf.app.flags.DEFINE_string('index_to_word_path', '/media/ioana/Elements/index_to_word_MSVD/dict.npy',
+#                            """index_to_word dictionary path""")
 
 tf.app.flags.DEFINE_string('input_sizes',  [[56, 56, 128],
                                             [28, 28, 256],
@@ -47,7 +47,10 @@ tf.app.flags.DEFINE_string('learning_rate', 0.001,
 def train_MSVD(saver, summary_writer, summary_op, model_action_rec):
   # Calculate predictions.
   logits_action_rec, feat_map_placeholders = model_action_rec.inference()
-  model = Video_Caption_Generator
+  model = Video_Caption_Generator(
+    logits_action_rec=logits_action_rec,
+    index_to_word_path=FLAGS.index_to_word_path,
+  )
 
 
 def train():

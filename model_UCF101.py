@@ -9,58 +9,54 @@ from vgg import VGG
 import cv2
 
 class Action_Recognizer():
-  def __init__(self, video_data_path, test_data_path, feats_dir, videos_dir,
-               input_sizes, hidden_sizes, batch_size_train, batch_size_test, nr_frames,
-               nr_feat_maps, nr_classes, keep_prob,
-               moving_average_decay, initial_learning_rate, tensor_names,
-               image_size, test_segments, cropping_sizes,
-               stacked=True):
-    self.input_sizes = input_sizes
-    self.hidden_sizes = hidden_sizes
-    self.batch_size_train = batch_size_train
-    self.batch_size_test = batch_size_test
-    self.nr_frames = nr_frames
-    self.nr_feat_maps = nr_feat_maps
-    self.kernel_size = 3
-    self.nr_classes = nr_classes
-    self.keep_prob = keep_prob
-    self.moving_average_decay = moving_average_decay
-    self.initial_learning_rate = initial_learning_rate
-    self.video_data_path = video_data_path
-    self.test_data_path = test_data_path
-    self.feats_dir = feats_dir
-    self.videos_dir = videos_dir
-    self.cnn = VGG(nr_feat_maps, tensor_names, image_size)
-    self.test_segments = test_segments
-    self.stacked = stacked
-    self.cropping_sizes = cropping_sizes
+  def __init__(self, config, stacked=False):
+    self._config = config
+    # self.input_sizes = input_sizes
+    # self.hidden_sizes = hidden_sizes
+    # self.batch_size_train = batch_size_train
+    # self.batch_size_test = batch_size_test
+    # self.nr_frames = nr_frames
+    # self.nr_feat_maps = nr_feat_maps
+    self._kernel_size = 3
+    # self.nr_classes = nr_classes
+    # self.keep_prob = keep_prob
+    # self.moving_average_decay = moving_average_decay
+    # self.initial_learning_rate = initial_learning_rate
+    # self.video_data_path = video_data_path
+    # self.test_data_path = test_data_path
+    # self.feats_dir = feats_dir
+    # self.videos_dir = videos_dir
+    self._cnn = VGG(self._config.nr_feat_maps, self._config.tensor_names, self._config.image_size)
+    # self.test_segments = test_segments
+    self._stacked = stacked
+    # self.cropping_sizes = cropping_sizes
 
-    self.grcu_list = []
+    self._grcu_list = []
 
-    for i, hidden_layer_size in enumerate(self.hidden_sizes):
-      with tf.variable_scope("GRU-RCN%d" % (i)):
-        kernel = self.kernel_size if self.input_sizes[i][0] > self.kernel_size else self.input_sizes[i][0]
-        if self.stacked:
-          if i == 0:
-            self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
-                                         -1,
-                                         self.input_sizes[i][0],
-                                         self.input_sizes[i][1],
-                                         self.input_sizes[i][2],
-                                         kernel))
-          else:
-            self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
-                                           self.hidden_sizes[i-1],
-                                           self.input_sizes[i][0],
-                                           self.input_sizes[i][1],
-                                           self.input_sizes[i][2],
-                                           kernel))
-        else:
-          self.grcu_list.append(GRCUCell(hidden_layer_size,
-                                         self.input_sizes[i][0],
-                                         self.input_sizes[i][1],
-                                         self.input_sizes[i][2],
-                                         kernel))
+    for i, hidden_layer_size in enumerate(self._config.hidden_sizes):
+      # with tf.variable_scope("GRU-RCN-L%d" % (i)):
+      kernel = self._kernel_size if self._config.input_sizes[i][0] > self._kernel_size else self._config.input_sizes[i][0]
+      # if self.stacked:
+      #   if i == 0:
+      #     self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
+      #                                  -1,
+      #                                  self.input_sizes[i][0],
+      #                                  self.input_sizes[i][1],
+      #                                  self.input_sizes[i][2],
+      #                                  kernel, i))
+      #   else:
+      #     self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
+      #                                    self.hidden_sizes[i-1],
+      #                                    self.input_sizes[i][0],
+      #                                    self.input_sizes[i][1],
+      #                                    self.input_sizes[i][2],
+      #                                    kernel, i))
+      # else:
+      self._grcu_list.append(GRCUCell(hidden_layer_size,
+                                     self._config.input_sizes[i][0],
+                                     self._config.input_sizes[i][1],
+                                     self._config.input_sizes[i][2],
+                                     kernel, i))
 
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
@@ -70,17 +66,17 @@ class Action_Recognizer():
     return train_data
 
   def get_video_data(self):
-    video_data = pd.read_csv(self.video_data_path, sep=',')
-    video_data['feat_path'] = video_data['feat_path'].map(lambda x: os.path.join(self.feats_dir, x))
-    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self.videos_dir, x))
+    video_data = pd.read_csv(self._config.video_data_path, sep=',')
+    video_data['feat_path'] = video_data['feat_path'].map(lambda x: os.path.join(self._config.feats_dir, x))
+    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self._config.videos_dir, x))
     video_data = video_data[video_data['feat_path'].map(lambda x: os.path.exists( x ))]
 
     return video_data
 
 
   def get_test_data(self):
-    video_data = pd.read_csv(self.test_data_path, sep=',')
-    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self.videos_dir, x))
+    video_data = pd.read_csv(self._config.test_data_path, sep=',')
+    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self._config.videos_dir, x))
 
     return video_data
 
@@ -90,7 +86,7 @@ class Action_Recognizer():
     nr_training_examples = train_data.shape[0]
     train_data = self.shuffle_train_data(train_data)
 
-    current_batch_indices = random.sample(xrange(nr_training_examples), self.batch_size_train)
+    current_batch_indices = random.sample(xrange(nr_training_examples), self._config.batch_size_train)
     current_batch = train_data.ix[current_batch_indices]
 
     current_videos = current_batch['video_path'].values
@@ -110,7 +106,7 @@ class Action_Recognizer():
   def get_test_batch(self):
     test_data = self.get_test_data()
     nr_testing_examples = test_data.shape[0]
-    current_batch_indices = random.sample(xrange(nr_testing_examples), self.batch_size_test)
+    current_batch_indices = random.sample(xrange(nr_testing_examples), self._config.batch_size_test)
     current_batch = test_data.ix[current_batch_indices]
 
     current_videos = current_batch['video_path'].values
@@ -129,7 +125,7 @@ class Action_Recognizer():
 
   def get_test_features(self, vid):
     try:
-      cap = cv2.VideoCapture (vid)
+      cap = cv2.VideoCapture(vid)
     except:
       print ("Cant open video capture")
 
@@ -152,16 +148,16 @@ class Action_Recognizer():
 
     frame_list = np.array(frame_list)
 
-    if frame_count < self.test_segments * self.nr_frames:
+    if frame_count < self._config.test_segments * self._config.nr_frames:
       print ("This video is too short. It has %d frames" % frame_count)
 
-    segment_indices = np.linspace(0, frame_count, num=self.test_segments, endpoint=False).astype(int)
+    segment_indices = np.linspace(0, frame_count, num=self._config.test_segments, endpoint=False).astype(int)
 
     segment_list = []
     for segment_idx in segment_indices:
-      segment_frames = frame_list[segment_idx : (segment_idx + self.nr_frames)]
-      cropped_segment_frames = np.array(map(lambda x: self.cnn.preprocess_frame(self.cropping_sizes, x), segment_frames))
-      segment_feats = self.cnn.get_features(cropped_segment_frames)
+      segment_frames = frame_list[segment_idx : (segment_idx + self._config.nr_frames)]
+      cropped_segment_frames = np.array(map(lambda x: self._cnn.preprocess_frame(self._config.cropping_sizes, x), segment_frames))
+      segment_feats = self._cnn.get_features(cropped_segment_frames)
       shape = segment_feats[4].shape
       segment_feats[4] = np.reshape(segment_feats[4], [shape[0], 1, 1, shape[1]])
       segment_list.append(segment_feats)
@@ -171,60 +167,62 @@ class Action_Recognizer():
 
   def inference(self, test=False):
     if test:
-      batch_size = self.batch_size_test
+      batch_size = self._config.batch_size_test
     else:
-      batch_size = self.batch_size_train
+      batch_size = self._config.batch_size_train
 
 
     # feature map placeholders
     feat_map_placeholders = []
-    for i, input_size in enumerate(self.input_sizes):
+    for i, input_size in enumerate(self._config.input_sizes):
       feat_map_placeholders.append(tf.placeholder(tf.float32, [batch_size,
-                                                               self.nr_frames,
+                                                               self._config.nr_frames,
                                                                input_size[0],
                                                                input_size[1],
                                                                input_size[2]], name=("feat_map_%d" % i)))
-    #
-    # for i, input_size in enumerate(self.input_sizes):
-    #   feat_map_batch[i] = tf.convert_to_tensor(feat_map_batch[i])
 
-    internal_states = []
-    for grcu in self.grcu_list:
-      state_size = [batch_size, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
-      internal_states.append(tf.zeros(state_size))
+    states = []
+    for grcu in self._grcu_list:
+      states.append(grcu.zero_state(batch_size))
 
-    for j, grcu in enumerate(self.grcu_list):
-      for i in range(self.nr_frames):
-        if self.stacked:
-          if j == 0:
-            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       None, scope=("StackedGRU-RCN%d" % (j)))
-          else:
-            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       internal_states[j-1], scope=("StackedGRU-RCN%d" % (j)))
-        else:
-          _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       scope=("GRU-RCN%d" % (j)))
+    with tf.variable_scope("RNN"):
+      for L, grcu in enumerate(self._grcu_list):
+        with tf.variable_scope('GRU-L%d' % L):
+          for time_step in range(self._config.nr_frames):
+            # if self.stacked:
+            #   if L == 0:
+            #     states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]),
+            #                      states[L], None, L)
+            #   else:
+            #     states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]),
+            #                      states[L], states[L-1], L)
+            # else:
+            if time_step > 0: tf.get_variable_scope().reuse_variables()
 
-    for i, grcu in enumerate(self.grcu_list):
-      internal_state = internal_states[i]
-      avg_pool = tf.nn.avg_pool(internal_state,
-                                ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
-                                strides=[1, 1, 1, 1], padding='VALID', name=('avg_pool%d' % i))
-      dropout = tf.nn.dropout(avg_pool, self.keep_prob)
+            states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]), states[L], L)
+            self.activation_summary(states[L])
 
-      dropout_shape = dropout.get_shape()
-      reshaped_output = tf.reshape(dropout, [dropout_shape[0].value, dropout_shape[-1].value])
 
-      with tf.variable_scope("softmax_linear%d" % i) as scope:
-        weights_soft = self.variable_with_weight_decay("weights", [ self.hidden_sizes[i], self.nr_classes],
-                                          stddev=1/self.hidden_sizes[i], wd=0.0)
-        biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
-                                  tf.constant_initializer(0.0))
-        softmax_linear = tf.nn.xw_plus_b(reshaped_output, weights_soft, biases_soft, name=scope.name)
-        # softmax = tf.nn.softmax(logits)
-        tf.add_to_collection('predictions_ensamble', softmax_linear)
-        # conv_summary.activation_summary(softmax_linear)
+    for L in range(len(self._grcu_list)):
+      final_state = states[L]
+
+      with tf.variable_scope("softmax-L%d" % L) as scope:
+        avg_pool = tf.nn.avg_pool(final_state,
+                                  ksize=[1, self._config.input_sizes[L][0], self._config.input_sizes[L][1], 1],
+                                  strides=[1, 1, 1, 1], padding='VALID', name=('avg_pool-L%d' % L))
+        dropout = tf.nn.dropout(avg_pool, self._config.keep_prob)
+
+        dropout_shape = dropout.get_shape()
+        reshaped_output = tf.reshape(dropout, [dropout_shape[0].value, dropout_shape[-1].value])
+
+        weights_soft = tf.get_variable("weights", shape=[self._config.hidden_sizes[L], self._config.nr_classes],
+                        initializer=tf.truncated_normal_initializer(stddev=0.04), dtype=tf.float32)
+        biases_soft = tf.get_variable("biases", shape=[self._config.nr_classes],
+                        initializer=tf.constant_initializer(0.1), dtype=tf.float32)
+        softmax = tf.nn.xw_plus_b(reshaped_output, weights_soft, biases_soft, name=scope.name)
+        tf.add_to_collection('predictions_ensamble', softmax)
+
+      self.activation_summary(softmax)
 
       y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
     return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'),
@@ -232,7 +230,7 @@ class Action_Recognizer():
 
 
   def loss(self, logits):
-    labels_placeholder = tf.placeholder(tf.int64, [self.batch_size_train], name="labels")
+    labels_placeholder = tf.placeholder(tf.int64, [self._config.batch_size_train], name="labels")
     # dense_labels = self.sparse_to_dense(labels)
 
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -250,14 +248,14 @@ class Action_Recognizer():
 
   def train(self, total_loss, global_step):
 
-    tf.scalar_summary('learning_rate', self.initial_learning_rate)
+    tf.scalar_summary('learning_rate', self._config.learning_rate)
 
     # Generate moving averages of all losses and associated summaries.
     loss_averages_op = self.add_loss_summaries(total_loss)
 
     # Compute gradients
     with tf.control_dependencies([loss_averages_op]):
-      opt = tf.train.GradientDescentOptimizer(self.initial_learning_rate)
+      opt = tf.train.GradientDescentOptimizer(self._config.learning_rate)
       # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
       grads_and_vars = opt.compute_gradients(total_loss)
 
@@ -290,7 +288,7 @@ class Action_Recognizer():
     Returns:
       Variable Tensor
     """
-    var = self.variable_on_cpu(name, shape, tf.truncated_normal_initializer(stddev=stddev))
+    var = self.variable(name, shape, tf.truncated_normal_initializer(stddev=stddev))
 
     if wd:
       weight_decay = tf.mul(tf.nn.l2_loss(var), wd, name="weight_loss")
@@ -298,7 +296,7 @@ class Action_Recognizer():
     return var
 
 
-  def variable_on_cpu(self, name, shape, initializer):
+  def variable(self, name, shape, initializer):
     """Helper to create a Variable stored on CPU memory.
 
     Args:
@@ -309,21 +307,9 @@ class Action_Recognizer():
     Returns:
       Variable Tensor
     """
-    with tf.device('/cpu:0'):
-      var = tf.get_variable(name, shape, initializer=initializer)
+    # with tf.device('/cpu:0'):
+    var = tf.get_variable(name, shape, initializer=initializer)
     return var
-
-
-  def sparse_to_dense(self, labels):
-    # Reshape the labels into a dense Tensor of
-    # shape [batch_size, NUM_CLASSES].
-    sparse_labels = tf.reshape(labels, [self.batch_size_train, 1])
-    indices = tf.reshape(tf.range(0, self.batch_size_train), [self.batch_size_train, 1])
-    concated = tf.concat(1, [indices, sparse_labels])
-    dense_labels = tf.sparse_to_dense(concated,
-                                      [self.batch_size_train, self.nr_classes],
-                                      1.0, 0.0)
-    return dense_labels
 
   def add_loss_summaries(self, total_loss):
     """Add summaries for losses in CIFAR-10 model.
@@ -377,14 +363,14 @@ class Action_Recognizer():
   def add_moving_averages_to_all(self, global_step):
     # Track the moving averages of all trainable variables.
     variable_averages = tf.train.ExponentialMovingAverage(
-            self.moving_average_decay, global_step)
+            self._config.moving_average_decay, global_step)
 
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
     return variables_averages_op
 
 
   def add_histograms(self, grads_and_vars):
-      # Add histograms for trainable variables.
+    # Add histograms for trainable variables.
     for var in tf.trainable_variables():
       tf.histogram_summary(var.op.name, var)
 
