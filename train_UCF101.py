@@ -7,7 +7,7 @@ from utils import load_pkl
 import random
 import time
 from datetime import datetime
-from video_config import VideoConfig
+from video_config import ActionConfig
 
 def train(config):
   model = Action_Recognizer(config)
@@ -90,7 +90,7 @@ def train(config):
 
 
 def main(_):
-  config = VideoConfig()
+  config = ActionConfig()
   if not config.resume:
     if tf.gfile.Exists(config.train_dir):
       tf.gfile.DeleteRecursively(config.train_dir)

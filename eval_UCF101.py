@@ -8,7 +8,7 @@ import random
 import time
 from datetime import datetime
 import math
-from video_config import VideoConfig
+from video_config import ActionConfig
 
 def eval_once(config, summary_writer, summary_op, model):
   # Calculate predictions.
@@ -89,7 +89,7 @@ def evaluate(config):
 
 
 def main(_):
-  config = VideoConfig()
+  config = ActionConfig()
   if tf.gfile.Exists(config.eval_dir):
     tf.gfile.DeleteRecursively(config.eval_dir)
   tf.gfile.MakeDirs(config.eval_dir)

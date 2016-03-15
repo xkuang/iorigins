@@ -5,22 +5,13 @@ import pandas as pd
 import os
 import random
 from utils import load_pkl
-from model_UCF101 import Action_Recognizer
+from tensorflow.python.ops.seq2seq import embedding_attention_seq2seq
+from tensorflow.python.ops.rnn_cell import GRUCell
 
-class Video_Caption_Generator(Action_Recognizer):
-  def __init__(self, video_data_path, test_data_path, feats_dir, videos_dir, index_to_word_path,
-               input_sizes, hidden_sizes, batch_size_train, nr_frames,
-               nr_feat_maps, nr_classes, keep_prob,
-               moving_average_decay, initial_learning_rate,
-               stacked=False):
-
-    Action_Recognizer.__init__(self, video_data_path, test_data_path, feats_dir, videos_dir,
-               input_sizes, hidden_sizes, batch_size_train, nr_frames,
-               nr_feat_maps, nr_classes, keep_prob,
-               moving_average_decay, initial_learning_rate,
-               stacked=False)
-    self.kernel_size = 3
-    self.index_to_word_path = index_to_word_path
+class Video_Caption_Generator():
+  def __init__(self, config):
+    self._config = config
+    self._kernel_size = 3
 
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
@@ -29,11 +20,12 @@ class Video_Caption_Generator(Action_Recognizer):
 
     return train_data
 
+
   def get_video_data(self, train_ratio=0.9):
-    video_data = pd.read_csv(self.video_data_path, sep=',')
+    video_data = pd.read_csv(self._config.video_data_path, sep=',')
     video_data = video_data[video_data['Language'] == 'English']
     video_data['video_path'] = video_data.apply(lambda row: row['VideoID']+'_'+str(row['Start'])+'_'+str(row['End'])+'.avi.pkl', axis=1)
-    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(FLAGS.feats_dir, x))
+    video_data['video_path'] = video_data['video_path'].map(lambda x: os.path.join(self._config.feats_dir, x))
     video_data = video_data[video_data['video_path'].map(lambda x: os.path.exists( x ))]
     video_data = video_data[video_data['Description'].map(lambda x: isinstance(x, str))]
 
@@ -47,6 +39,7 @@ class Video_Caption_Generator(Action_Recognizer):
     test_data = video_data[video_data['video_path'].map(lambda x: x in test_vids)]
 
     return train_data, test_data
+
 
   def create_vocab(self, captions, word_count_threshold=5): # borrowed this function from NeuralTalk):
     print 'preprocessing word counts and creating vocab based on word count threshold %d' % (word_count_threshold, )
@@ -85,12 +78,13 @@ class Video_Caption_Generator(Action_Recognizer):
 
     word_to_index, index_to_word, bias_init_vector = self.create_vocab(captions, word_count_threshold=10)
 
-    if not os.path.exists(self.index_to_word_path):
-      np.save(self.index_to_word_path, index_to_word)
+    if not os.path.exists(self._config.index_to_word_path):
+      np.save(self._config.index_to_word_path, index_to_word)
 
-    self.nr_words = len(word_to_index)
+    self._config.nr_words = len(word_to_index)
 
     return word_to_index, index_to_word, bias_init_vector, captions
+
 
   def get_batch(self):
     train_data, _ = self.get_video_data()
@@ -102,7 +96,7 @@ class Video_Caption_Generator(Action_Recognizer):
     current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
     current_train_data = current_train_data.reset_index(drop=True)
 
-    current_batch_indices = random.sample(xrange(nr_training_examples), self.batch_size_train)
+    current_batch_indices = random.sample(xrange(nr_training_examples), self._config.batch_size_train)
     current_batch = current_train_data.ix[current_batch_indices]
 
     current_feats = current_batch['video_path'].values
@@ -120,103 +114,22 @@ class Video_Caption_Generator(Action_Recognizer):
     return feat_maps_batch_segments, np.asarray(captions)
 
 
-  def inference(self):
-    # feature map placeholders
-    feat_map_placeholders = []
-    for i, input_size in enumerate(self.input_sizes):
-      feat_map_placeholders.append(tf.placeholder(tf.float32, [self.batch_size_train,
-                                                               self.nr_frames,
-                                                               input_size[0],
-                                                               input_size[1],
-                                                               input_size[2]], name=("feat_map_%d" % i)))
-    #
-    # for i, input_size in enumerate(self.input_sizes):
-    #   feat_map_batch[i] = tf.convert_to_tensor(feat_map_batch[i])
-
-    internal_states = []
-    for grcu in self.grcu_list:
-      state_size = [self.batch_size_train, grcu.state_size[0], grcu.state_size[1], grcu.state_size[2]]
-      internal_states.append(tf.zeros(state_size))
-
-    for j, grcu in enumerate(self.grcu_list):
-      for i in range(self.nr_frames):
-        if self.stacked:
-          if j == 0:
-            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       None, scope=("GRU-RCN%d" % (j)))
-          else:
-            _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       internal_states[j-1], scope=("GRU-RCN%d" % (j)))
-        else:
-          _, internal_states[j] = grcu(tf.convert_to_tensor(feat_map_placeholders[j][:,i,:,:,:]), internal_states[j],
-                                       scope=("GRU-RCN%d" % (j)))
-
-    for i, grcu in enumerate(self.grcu_list):
-      internal_state = internal_states[i]
-      avg_pool = tf.nn.avg_pool(internal_state,
-                                ksize=[1, self.input_sizes[i][0], self.input_sizes[i][1], 1],
-                                strides=[1, 1, 1, 1], padding='VALID', name=('avg_pool%d' % i))
-      dropout = tf.nn.dropout(avg_pool, self.keep_prob)
-
-      dropout_shape = dropout.get_shape()
-      reshaped_output = tf.reshape(dropout, [dropout_shape[0].value, dropout_shape[-1].value])
-
-      with tf.variable_scope("softmax_linear%d" % i) as scope:
-        weights_soft = self.variable_with_weight_decay("weights", [ self.hidden_sizes[i], self.nr_classes],
-                                          stddev=1/self.hidden_sizes[i], wd=0.0)
-        biases_soft = self.variable_on_cpu("biases", [self.nr_classes],
-                                  tf.constant_initializer(0.0))
-        softmax_linear = tf.nn.xw_plus_b(reshaped_output, weights_soft, biases_soft, name=scope.name)
-        # softmax = tf.nn.softmax(logits)
-        tf.add_to_collection('predictions_ensamble', softmax_linear)
-        # conv_summary.activation_summary(softmax_linear)
-
-      y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
-    return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'),
-                      y, name='softmax_linear_average'), feat_map_placeholders
+  def inference(self, encoder_inputs, feed_previous=False):
+    decoder_inputs_placeholders = self._config.nr_words * tf.placeholder(tf.int32, [self._config.embed_size])
+    cell = GRUCell(self._config.cell_state_size, self._config.cell_input_size)
+    output = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
+                                         self._config.num_encoder_symbols, self._config.num_decoder_symbols,
+                                         feed_previous=feed_previous)
+    return output, decoder_inputs_placeholders
 
 
-  def loss(self, logits):
-    labels_placeholder = tf.placeholder(tf.int64, [self.batch_size_train], name="labels")
-    # dense_labels = self.sparse_to_dense(labels)
-
-    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits, labels_placeholder, name='cross_entropy_per_example')
-
-    cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-    tf.add_to_collection('losses', cross_entropy_mean)
-
-    # The total loss is defined as the cross entropy loss plus all of the weight
-    # decay terms (L2 loss).
-    total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
-
-    return total_loss, labels_placeholder
+  # def loss(self, logits):
 
 
-  def train(self, total_loss, global_step):
 
-    tf.scalar_summary('learning_rate', self.initial_learning_rate)
+  # def train(self, total_loss, global_step):
 
-    # Generate moving averages of all losses and associated summaries.
-    loss_averages_op = self.add_loss_summaries(total_loss)
 
-    # Compute gradients
-    with tf.control_dependencies([loss_averages_op]):
-      opt = tf.train.GradientDescentOptimizer(self.initial_learning_rate)
-      # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
-      grads_and_vars = opt.compute_gradients(total_loss)
-
-    # Apply gradients
-    apply_gradients_op = opt.apply_gradients(grads_and_vars, global_step=global_step)
-
-    self.add_histograms(grads_and_vars)
-
-    variables_averages_op = self.add_moving_averages_to_all(global_step)
-
-    with tf.control_dependencies([apply_gradients_op, variables_averages_op]):
-      train_op = tf.no_op(name='train')
-
-    return train_op
 
 
   def variable_with_weight_decay(self, name, shape, stddev, wd):
@@ -258,17 +171,6 @@ class Video_Caption_Generator(Action_Recognizer):
       var = tf.get_variable(name, shape, initializer=initializer)
     return var
 
-
-  def sparse_to_dense(self, labels):
-    # Reshape the labels into a dense Tensor of
-    # shape [batch_size, NUM_CLASSES].
-    sparse_labels = tf.reshape(labels, [self.batch_size_train, 1])
-    indices = tf.reshape(tf.range(0, self.batch_size_train), [self.batch_size_train, 1])
-    concated = tf.concat(1, [indices, sparse_labels])
-    dense_labels = tf.sparse_to_dense(concated,
-                                      [self.batch_size_train, self.nr_classes],
-                                      1.0, 0.0)
-    return dense_labels
 
   def add_loss_summaries(self, total_loss):
     """Add summaries for losses in CIFAR-10 model.
@@ -322,7 +224,7 @@ class Video_Caption_Generator(Action_Recognizer):
   def add_moving_averages_to_all(self, global_step):
     # Track the moving averages of all trainable variables.
     variable_averages = tf.train.ExponentialMovingAverage(
-            self.moving_average_decay, global_step)
+            self._config.moving_average_decay, global_step)
 
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
     return variables_averages_op

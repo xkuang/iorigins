@@ -9,7 +9,7 @@ from vgg import VGG
 import cv2
 
 class Action_Recognizer():
-  def __init__(self, config, stacked=False):
+  def __init__(self, config):
     self._config = config
     self._kernel_size = 3
     self._cnn = VGG(self._config.nr_feat_maps, self._config.tensor_names, self._config.image_size)
@@ -138,7 +138,7 @@ class Action_Recognizer():
     return segment_list
 
 
-  def inference(self, test=False):
+  def inference(self, test=False, caption=False):
     if test:
       batch_size = self._config.batch_size_test
     else:
@@ -174,7 +174,7 @@ class Action_Recognizer():
 
             self.activation_summary(states[L])
 
-
+    if caption: outputs_L = []
     for L in range(len(self._grcu_list)):
       final_state = states[L]
 
@@ -182,6 +182,8 @@ class Action_Recognizer():
         avg_pool = tf.nn.avg_pool(final_state,
                                   ksize=[1, self._config.input_sizes[L][0], self._config.input_sizes[L][1], 1],
                                   strides=[1, 1, 1, 1], padding='VALID', name=('avg_pool-L%d' % L))
+        if caption: outputs_L.append(avg_pool)
+
         dropout = tf.nn.dropout(avg_pool, self._config.keep_prob)
 
         dropout_shape = dropout.get_shape()
@@ -195,6 +197,10 @@ class Action_Recognizer():
         tf.add_to_collection('predictions_ensamble', softmax)
 
       self.activation_summary(softmax)
+
+    if caption:
+      output_caption = tf.concat(1, outputs_L)
+      return output_caption, feat_map_placeholders
 
       y = tf.constant(len(tf.get_collection('predictions_ensamble')), dtype=tf.float32)
     return tf.truediv(tf.add_n(tf.get_collection('predictions_ensamble'), name='softmax_linear_sum'),

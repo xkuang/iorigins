@@ -37,7 +37,6 @@ tf.app.flags.DEFINE_string('cropping_sizes', [240, 224, 192, 168],
 
 
 def main():
-  # inception = Inception()
   vgg = VGG(FLAGS.nr_feat_maps, FLAGS.tensor_names, FLAGS.image_size)
 
   videos = os.listdir(FLAGS.videos_dir)
