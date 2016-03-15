@@ -98,3 +98,6 @@ class VideoConfig(object):
 
   #How often to run the eval
   eval_interval_secs = 60 * 5
+
+  #Use Stacked GRCU instead of regular ones
+  stacked = True

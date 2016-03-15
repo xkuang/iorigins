@@ -16,7 +16,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
   (cf. http://arxiv.org/pdf/1511.06432v4).
   """
 
-  def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size, L, scope=None, dtype=tf.float32):
+  def __init__(self, hidden_size, input_width, input_height, input_size, kernel_size, dtype=tf.float32):
     """Initialize the parameters for an GRCU cell.
     Args:
       hidden_dim: int, The number of dimensions in the GRCU cell
@@ -60,7 +60,7 @@ class GRCUCell(tf.nn.rnn_cell.RNNCell):
   def zero_state(self, batch_size):
     return tf.zeros([batch_size, self._input_width, self._input_height, self._hidden_size], dtype=self._dtype)
 
-  def __call__(self, input_, state, L, scope=None):
+  def __call__(self, input_, state):
     """Gated recurrent unit (GRU) with nunits cells."""
 
     initializer = tf.truncated_normal_initializer(stddev=1e-4)
@@ -120,7 +120,8 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
   (cf. http://arxiv.org/pdf/1511.06432v4).
   """
 
-  def __init__(self, hidden_size, hidden_prev_layer_size, input_width, input_height, input_size, kernel_size):
+  def __init__(self, hidden_size, hidden_prev_layer_size, input_width, input_height, input_size, kernel_size,
+               dtype=tf.float32):
     """Initialize the parameters for an GRCU cell.
     Args:
       hidden_dim: int, The number of dimensions in the GRCU cell
@@ -137,43 +138,8 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
     self._input_size = input_size
     self._kernel_size = kernel_size
 
-    dtype = tf.float32
-    initializer = tf.truncated_normal_initializer(stddev=1e-4)
-    #update gate kernels
-    with tf.variable_scope("Gates"):
-      self.W_z = tf.get_variable(
-            "W_z", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
-      self.U_z = tf.get_variable(
-            "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
+    self._dtype = dtype
 
-      if self._hidden_prev_layer_size != -1:
-        self.W_z_l = tf.get_variable(
-              "W_z_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
-          initializer=initializer, dtype=dtype)
-
-      #reset gate kernels
-      self.W_r = tf.get_variable(
-            "W_r", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
-      self.U_r = tf.get_variable(
-            "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
-
-      if self._hidden_prev_layer_size != -1:
-        self.W_r_l = tf.get_variable(
-              "W_r_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
-          initializer=initializer, dtype=dtype)
-
-    #candidate gate kernels
-    with tf.variable_scope("Candidate"):
-      self.W = tf.get_variable(
-                "W", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
-      self.U = tf.get_variable(
-            "U", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
-        initializer=initializer, dtype=dtype)
 
   @property
   def input_width(self):
@@ -199,73 +165,96 @@ class StackedGRCUCell(tf.nn.rnn_cell.RNNCell):
   def kernel_size(self):
     return self._kernel_size
 
-  def __call__(self, input_, state, state_prev_layer, scope=None):
+  def zero_state(self, batch_size):
+    return tf.zeros([batch_size, self._input_width, self._input_height, self._hidden_size], dtype=self._dtype)
+
+  def __call__(self, input_, state, state_prev_layer):
     """Gated recurrent unit (GRU) with nunits cells."""
+    with tf.variable_scope("PoolPrev"):
+      if self._hidden_prev_layer_size != -1:
+        #max-pool previous layer hidden state
+        if state_prev_layer.get_shape()[1].value / state.get_shape()[1].value == 2:
+          pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
+                               padding='SAME', name='pool-prev-layer')
+        else:
+          pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1],
+                               padding='SAME', name='pool-prev-layer')
 
-    if self._hidden_prev_layer_size != -1:
-      #max-pool previous layer hidden state
-      if state_prev_layer.get_shape()[1].value / state.get_shape()[1].value == 2:
-        pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
-                             padding='SAME', name='pool-prev-layer')
+
+    initializer = tf.truncated_normal_initializer(stddev=1e-4)
+    #update gate kernels
+    with tf.variable_scope("Gates"):
+      self.W_z = tf.get_variable(
+            "W_z", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+            initializer=initializer, dtype=self._dtype)
+      self.U_z = tf.get_variable(
+            "U_z", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+            initializer=initializer, dtype=self._dtype)
+
+      if self._hidden_prev_layer_size != -1:
+        self.W_z_l = tf.get_variable(
+              "W_z_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
+              initializer=initializer, dtype=self._dtype)
+
+      #reset gate kernels
+      self.W_r = tf.get_variable(
+            "W_r", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+            initializer=initializer, dtype=self._dtype)
+      self.U_r = tf.get_variable(
+            "U_r", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+            initializer=initializer, dtype=self._dtype)
+
+      if self._hidden_prev_layer_size != -1:
+        self.W_r_l = tf.get_variable(
+              "W_r_l", shape=[self._kernel_size, self._kernel_size, self._hidden_prev_layer_size, self._hidden_size],
+              initializer=initializer, dtype=self._dtype)
+
+      #convolution operations for update gate
+      conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")
+      conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
+
+      if self._hidden_prev_layer_size != -1:
+        #convolution for the layer beneath update gate
+        conv_W_z_l = tf.nn.conv2d(pool_prev_layer, self.W_z_l, [1, 1, 1, 1], padding="SAME")
+
+      if self._hidden_prev_layer_size != -1:
+        u = conv_W_z + conv_W_z_l + conv_U_z
       else:
-        pool_prev_layer = tf.nn.max_pool(state_prev_layer, ksize=[1, 7, 7, 1], strides=[1, 7, 7, 1],
-                             padding='SAME', name='pool-prev-layer')
+        u = conv_W_z + conv_U_z
 
-    #convolution operations for update gate
-    conv_W_z = tf.nn.conv2d(input_, self.W_z, [1, 1, 1, 1], padding="SAME")
-    conv_U_z = tf.nn.conv2d(state, self.U_z, [1, 1, 1, 1], padding="SAME")
+      u = sigmoid(u)
 
-    if self._hidden_prev_layer_size != -1:
-      #convolution for the layer beneath update gate
-      conv_W_z_l = tf.nn.conv2d(pool_prev_layer, self.W_z_l, [1, 1, 1, 1], padding="SAME")
+      #convolution operations for reset gate
+      conv_W_r = tf.nn.conv2d(input_, self.W_r, [1, 1, 1, 1], padding="SAME")
+      conv_U_r = tf.nn.conv2d(state, self.U_r, [1, 1, 1, 1], padding="SAME")
 
-    if self._hidden_prev_layer_size != -1:
-      u = conv_W_z + conv_W_z_l + conv_U_z
-    else:
-      u = conv_W_z + conv_U_z
+      if self._hidden_prev_layer_size != -1:
+        #convolution for the layer beneath reset gate
+        conv_W_r_l = tf.nn.conv2d(pool_prev_layer, self.W_r_l, [1, 1, 1, 1], padding="SAME")
 
-    u = sigmoid(u)
+      if self._hidden_prev_layer_size != -1:
+        r = conv_W_r + conv_W_r_l + conv_U_r
+      else:
+        r = conv_W_r + conv_U_r
 
-    #convolution operations for reset gate
-    conv_W_r = tf.nn.conv2d(input_, self.W_r, [1, 1, 1, 1], padding="SAME")
-    conv_U_r = tf.nn.conv2d(state, self.U_r, [1, 1, 1, 1], padding="SAME")
+      r = sigmoid(r)
 
-    if self._hidden_prev_layer_size != -1:
-      #convolution for the layer beneath reset gate
-      conv_W_r_l = tf.nn.conv2d(pool_prev_layer, self.W_r_l, [1, 1, 1, 1], padding="SAME")
+    #candidate gate kernels
+    with tf.variable_scope("Candidate"):
+      self.W = tf.get_variable(
+                "W", shape=[self._kernel_size, self._kernel_size, self._input_size, self._hidden_size],
+                initializer=initializer, dtype=self._dtype)
+      self.U = tf.get_variable(
+                "U", shape=[self._kernel_size, self._kernel_size, self._hidden_size, self._hidden_size],
+                initializer=initializer, dtype=self._dtype)
 
-    if self._hidden_prev_layer_size != -1:
-      r = conv_W_r + conv_W_r_l + conv_U_r
-    else:
-      r = conv_W_r + conv_U_r
+      #convolution operations for candidate gate
+      conv_W = tf.nn.conv2d(input_, self.W, [1, 1, 1, 1], padding="SAME")
+      conv_U = tf.nn.conv2d(r * state, self.U, [1, 1, 1, 1], padding="SAME")
 
-    r = sigmoid(r)
+      c = conv_W + conv_U
+      c = tanh(c)
 
-    #convolution operations for candidate gate
-    conv_W = tf.nn.conv2d(input_, self.W, [1, 1, 1, 1], padding="SAME")
-    conv_U = tf.nn.conv2d(r * state, self.U, [1, 1, 1, 1], padding="SAME")
+      new_h = u * state + (1 - u) * c
 
-    c = conv_W + conv_U
-    c = tanh(c)
-
-    new_h = u * state + (1 - u) * c
-
-    return new_h, new_h
-
-  # def _activation_summary(self, x):
-  #   """Helper to create summaries for activations.
-  #
-  #   Creates a summary that provides a histogram of activations.
-  #   Creates a summary that measure the sparsity of activations.
-  #
-  #   Args:
-  #     x: Tensor
-  #   Returns:
-  #     nothing
-  #   """
-  #   # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
-  #   # session. This helps the clarity of presentation on tensorboard.
-  #   # tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
-  #   tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
-  #   tf.histogram_summary(tensor_name + '/activations', x)
-  #   tf.scalar_summary(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
+    return new_h

@@ -11,52 +11,24 @@ import cv2
 class Action_Recognizer():
   def __init__(self, config, stacked=False):
     self._config = config
-    # self.input_sizes = input_sizes
-    # self.hidden_sizes = hidden_sizes
-    # self.batch_size_train = batch_size_train
-    # self.batch_size_test = batch_size_test
-    # self.nr_frames = nr_frames
-    # self.nr_feat_maps = nr_feat_maps
     self._kernel_size = 3
-    # self.nr_classes = nr_classes
-    # self.keep_prob = keep_prob
-    # self.moving_average_decay = moving_average_decay
-    # self.initial_learning_rate = initial_learning_rate
-    # self.video_data_path = video_data_path
-    # self.test_data_path = test_data_path
-    # self.feats_dir = feats_dir
-    # self.videos_dir = videos_dir
     self._cnn = VGG(self._config.nr_feat_maps, self._config.tensor_names, self._config.image_size)
-    # self.test_segments = test_segments
-    self._stacked = stacked
-    # self.cropping_sizes = cropping_sizes
-
     self._grcu_list = []
 
-    for i, hidden_layer_size in enumerate(self._config.hidden_sizes):
-      # with tf.variable_scope("GRU-RCN-L%d" % (i)):
-      kernel = self._kernel_size if self._config.input_sizes[i][0] > self._kernel_size else self._config.input_sizes[i][0]
-      # if self.stacked:
-      #   if i == 0:
-      #     self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
-      #                                  -1,
-      #                                  self.input_sizes[i][0],
-      #                                  self.input_sizes[i][1],
-      #                                  self.input_sizes[i][2],
-      #                                  kernel, i))
-      #   else:
-      #     self.grcu_list.append(StackedGRCUCell(hidden_layer_size,
-      #                                    self.hidden_sizes[i-1],
-      #                                    self.input_sizes[i][0],
-      #                                    self.input_sizes[i][1],
-      #                                    self.input_sizes[i][2],
-      #                                    kernel, i))
-      # else:
-      self._grcu_list.append(GRCUCell(hidden_layer_size,
-                                     self._config.input_sizes[i][0],
-                                     self._config.input_sizes[i][1],
-                                     self._config.input_sizes[i][2],
-                                     kernel, i))
+    for L, hidden_layer_size in enumerate(self._config.hidden_sizes):
+      kernel = self._kernel_size if self._config.input_sizes[L][0] > self._kernel_size else self._config.input_sizes[L][0]
+      if self._config.stacked:
+        if L == 0:
+          self._grcu_list.append(StackedGRCUCell(hidden_layer_size, -1, self._config.input_sizes[L][0],
+                                                self._config.input_sizes[L][1], self._config.input_sizes[L][2], kernel))
+        else:
+          self._grcu_list.append(StackedGRCUCell(hidden_layer_size, self._config.hidden_sizes[L-1],
+                                                self._config.input_sizes[L][0], self._config.input_sizes[L][1],
+                                                self._config.input_sizes[L][2], kernel))
+      else:
+        self._grcu_list.append(GRCUCell(hidden_layer_size, self._config.input_sizes[L][0], self._config.input_sizes[L][1],
+                                        self._config.input_sizes[L][2], kernel))
+
 
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
@@ -64,6 +36,7 @@ class Action_Recognizer():
     train_data = train_data.ix[index]
 
     return train_data
+
 
   def get_video_data(self):
     video_data = pd.read_csv(self._config.video_data_path, sep=',')
@@ -189,17 +162,16 @@ class Action_Recognizer():
       for L, grcu in enumerate(self._grcu_list):
         with tf.variable_scope('GRU-L%d' % L):
           for time_step in range(self._config.nr_frames):
-            # if self.stacked:
-            #   if L == 0:
-            #     states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]),
-            #                      states[L], None, L)
-            #   else:
-            #     states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]),
-            #                      states[L], states[L-1], L)
-            # else:
             if time_step > 0: tf.get_variable_scope().reuse_variables()
 
-            states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]), states[L], L)
+            if self._config.stacked:
+              if L == 0:
+                states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]), states[L], None)
+              else:
+                states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]), states[L], states[L-1])
+            else:
+              states[L] = grcu(tf.convert_to_tensor(feat_map_placeholders[L][:,time_step,:,:,:]), states[L])
+
             self.activation_summary(states[L])
 
 
