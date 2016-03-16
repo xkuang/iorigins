@@ -117,7 +117,7 @@ class Video_Caption_Generator():
   def inference(self, encoder_inputs, feed_previous=False):
     decoder_inputs_placeholders = self._config.nr_words * tf.placeholder(tf.int32, [self._config.embed_size])
     cell = GRUCell(self._config.cell_state_size, self._config.cell_input_size)
-    output = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
+    output, _ = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
                                          self._config.num_encoder_symbols, self._config.num_decoder_symbols,
                                          feed_previous=feed_previous)
     return output, decoder_inputs_placeholders

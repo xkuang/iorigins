@@ -191,3 +191,6 @@ class CaptionConfig(object):
 
   #Use Stacked GRCU instead of regular ones
   stacked = True
+
+  #The buckets needed to pad the input captions
+  buckets = [(5, 10), (10, 15), (20, 25), (40, 50)]
