@@ -54,10 +54,15 @@ def train(config_action, config_caption):
     word_to_index, index_to_word, bias_init_vector = model.get_caption_dicts(train_data)
 
     # Calculate predictions.
-    output, caption_placeholders = model.inference(segments)
+    bucket_output, bucket_captions_placeholders = model.inference(segments)
+
+    graph_def = sess.graph.as_graph_def(add_shapes=True)
+    summary_writer = tf.train.SummaryWriter(config_caption.train_dir,
+                                          graph_def=graph_def)
 
     # Read data into buckets and compute their sizes.
-
+    for step in xrange(config_caption.max_steps):
+      feat_maps_batch, labels = model.get_batch()
 
 def main(_):
   config_action = ActionConfig()

@@ -91,7 +91,7 @@ class Video_Caption_Generator():
     nr_training_examples = train_data.shape[0]
     train_data = self.shuffle_train_data(train_data)
 
-    word_to_index, index_to_word, bias_init_vector = self.get_caption_dicts(train_data)
+    # word_to_index, index_to_word, bias_init_vector = self.get_caption_dicts(train_data)
 
     current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
     current_train_data = current_train_data.reset_index(drop=True)
@@ -113,14 +113,49 @@ class Video_Caption_Generator():
 
     return feat_maps_batch_segments, np.asarray(captions)
 
+  def get_example(self):
+    train_data, _ = self.get_video_data()
+    nr_training_examples = train_data.shape[0]
+    train_data = self.shuffle_train_data(train_data)
+
+    # word_to_index, index_to_word, bias_init_vector = self.get_caption_dicts(train_data)
+
+    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
+    current_train_data = current_train_data.reset_index(drop=True)
+
+    current_example_index = np.random.randint(0, nr_training_examples)
+    current_example = current_train_data[current_example_index]
+
+    vid = current_example['video_path']
+    caption = current_example['Description'].value
+    caption = map(lambda x: x.replace('.', ''), caption)
+    caption = map(lambda x: x.replace(',', ''), caption)
+    words = caption.lower().split(' ')
+
+    current_feats_vals = load_pkl(vid)
+    # feat_maps_batch_segments = zip(*current_feats_vals)
+    #
+    # feat_maps_batch_segments = map(lambda segment: zip(*segment), feat_maps_batch_segments)
+    # feat_maps_batch_segments = map(lambda segment: map(lambda feat_map: np.asarray(feat_map), segment),
+    #                                feat_maps_batch_segments)
+
+    return current_feats_vals, np.asarray(caption)
 
   def inference(self, encoder_inputs, feed_previous=False):
-    decoder_inputs_placeholders = self._config.nr_words * tf.placeholder(tf.int32, [self._config.embed_size])
-    cell = GRUCell(self._config.cell_state_size, self._config.cell_input_size)
-    output, _ = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
-                                         self._config.num_encoder_symbols, self._config.num_decoder_symbols,
-                                         feed_previous=feed_previous)
-    return output, decoder_inputs_placeholders
+    cell = GRUCell(self._config.cell_state_size) #, self._config.cell_input_size)
+
+    bucket_decoder_inputs_placeholders = []
+    bucket_output = []
+    for bucket in self._config.buckets:
+      decoder_inputs_placeholders = bucket * tf.placeholder(tf.int32, [self._config.embed_size])
+      bucket_decoder_inputs_placeholders.append(decoder_inputs_placeholders)
+
+      output, _ = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
+                                           self._config.num_encoder_symbols, self._config.num_decoder_symbols,
+                                           feed_previous=feed_previous)
+      bucket_output.append(output)
+
+    return bucket_output, bucket_decoder_inputs_placeholders
 
 
   # def loss(self, logits):

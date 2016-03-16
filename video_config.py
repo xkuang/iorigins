@@ -192,5 +192,22 @@ class CaptionConfig(object):
   #Use Stacked GRCU instead of regular ones
   stacked = True
 
-  #The buckets needed to pad the input captions
-  buckets = [(5, 10), (10, 15), (20, 25), (40, 50)]
+  #buckets for captions placeholders
+  buckets = [5, 10, 20, 40]
+
+  #the size of the rnn cell for the captioning RNN
+  cell_state_size = 512
+
+  #the size of the embedding vectors
+  embed_size = 1024
+
+  #number of encoder symbols for the captioning RNN
+  num_encoder_symbols = 1024
+
+  #number of decoder symbols for the captioning RNN
+  num_decoder_symbols = 512
+
+
+
+
+
