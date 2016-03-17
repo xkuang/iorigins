@@ -6,12 +6,34 @@ import os
 import random
 from utils import load_pkl
 from tensorflow.python.ops.seq2seq import embedding_attention_seq2seq
-from tensorflow.python.ops.rnn_cell import GRUCell
+from tensorflow.python.ops.rnn_cell import GRUCell, BasicLSTMCell
+from keras.preprocessing import sequence
 
 class Video_Caption_Generator():
   def __init__(self, config):
     self._config = config
     self._kernel_size = 3
+
+    self._train_data, _ = self.get_video_data()
+    self._nr_training_examples = self._train_data.shape[0]
+    self._train_data = self.shuffle_train_data(self._train_data)
+
+    self._word_to_index, self._index_to_word, self._bias_init_vector, self._caption_matrix, self._longest_caption = \
+      self.get_caption_dicts(self._train_data)
+
+    self._nr_words = len(self._word_to_index)
+
+    self._W_emb = tf.get_variable(tf.random_uniform([self._nr_words, self._config.dim_hidden], -0.1, 0.1), name='W_emb')
+
+    self._lstm = BasicLSTMCell(self._config.dim_hidden)
+
+    self._encode_image_W = tf.get_variable(tf.random_uniform([self._config.dim_video, self._config.dim_hidden], -0.1,
+                                                            0.1), name='encode_image_W')
+    self._encode_image_b = tf.get_variable(tf.zeros([self._config.dim_hidden]), name='encode_image_b')
+
+    self._embed_word_W = tf.get_variable(tf.random_uniform([self._config.dim_hidden, self._nr_words], -0.1, 0.1),
+                                    name='embed_word_W')
+    self._embed_word_b = tf.get_variable(tf.zeros([self._nr_words]), name='embed_word_b')
 
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
@@ -45,9 +67,15 @@ class Video_Caption_Generator():
     print 'preprocessing word counts and creating vocab based on word count threshold %d' % (word_count_threshold, )
     word_counts = {}
     nr_captions = 0
+    longest_caption = 0
     for caption in captions:
         nr_captions += 1
-        for word in caption.lower().split(' '):
+        words = caption.lower().split(' ')
+
+        if (longest_caption < len(words)):
+          longest_caption = len(words)
+
+        for word in words:
            word_counts[word] = word_counts.get(word, 0) + 1
 
     vocab = [word for word in word_counts if word_counts[word] >= word_count_threshold]
@@ -76,86 +104,71 @@ class Video_Caption_Generator():
     captions = map(lambda x: x.replace('.', ''), captions)
     captions = map(lambda x: x.replace(',', ''), captions)
 
-    word_to_index, index_to_word, bias_init_vector = self.create_vocab(captions, word_count_threshold=10)
+    word_to_index, index_to_word, bias_init_vector, longest_caption = self.create_vocab(captions, word_count_threshold=10)
+
+    captions_ind = map(lambda cap: [word_to_index[word] for word in cap.lower().split(' ')[:-1] if word in word_to_index], captions)
+
+    caption_matrix = sequence.pad_sequences(captions_ind, padding='post', maxlen=longest_caption)
 
     if not os.path.exists(self._config.index_to_word_path):
       np.save(self._config.index_to_word_path, index_to_word)
 
     self._config.nr_words = len(word_to_index)
 
-    return word_to_index, index_to_word, bias_init_vector, captions
-
-
-  def get_batch(self):
-    train_data, _ = self.get_video_data()
-    nr_training_examples = train_data.shape[0]
-    train_data = self.shuffle_train_data(train_data)
-
-    # word_to_index, index_to_word, bias_init_vector = self.get_caption_dicts(train_data)
-
-    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
-    current_train_data = current_train_data.reset_index(drop=True)
-
-    current_batch_indices = random.sample(xrange(nr_training_examples), self._config.batch_size_train)
-    current_batch = current_train_data.ix[current_batch_indices]
-
-    current_feats = current_batch['video_path'].values
-    captions = current_batch['Description'].values
-    captions = map(lambda x: x.replace('.', ''), captions)
-    captions = map(lambda x: x.replace(',', ''), captions)
-
-    current_feats_vals = map(lambda vid: load_pkl(vid), current_feats)
-    feat_maps_batch_segments = zip(*current_feats_vals)
-
-    feat_maps_batch_segments = map(lambda segment: zip(*segment), feat_maps_batch_segments)
-    feat_maps_batch_segments = map(lambda segment: map(lambda feat_map: np.asarray(feat_map), segment),
-                                   feat_maps_batch_segments)
-
-    return feat_maps_batch_segments, np.asarray(captions)
+    return word_to_index, index_to_word, bias_init_vector, caption_matrix, longest_caption
 
   def get_example(self):
-    train_data, _ = self.get_video_data()
-    nr_training_examples = train_data.shape[0]
-    train_data = self.shuffle_train_data(train_data)
 
-    # word_to_index, index_to_word, bias_init_vector = self.get_caption_dicts(train_data)
-
-    current_train_data = train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
+    current_train_data = self._train_data.groupby('video_path').apply(lambda x: x.iloc[np.random.choice(len(x))])
     current_train_data = current_train_data.reset_index(drop=True)
 
-    current_example_index = np.random.randint(0, nr_training_examples)
+    current_example_index = np.random.randint(0, self._nr_training_examples)
     current_example = current_train_data[current_example_index]
 
     vid = current_example['video_path']
-    caption = current_example['Description'].value
-    caption = map(lambda x: x.replace('.', ''), caption)
-    caption = map(lambda x: x.replace(',', ''), caption)
-    words = caption.lower().split(' ')
+    current_caption = self._caption_matrix[current_example_index]
 
-    current_feats_vals = load_pkl(vid)
+    current_feats_segments = load_pkl(vid)
     # feat_maps_batch_segments = zip(*current_feats_vals)
     #
     # feat_maps_batch_segments = map(lambda segment: zip(*segment), feat_maps_batch_segments)
     # feat_maps_batch_segments = map(lambda segment: map(lambda feat_map: np.asarray(feat_map), segment),
     #                                feat_maps_batch_segments)
 
-    return current_feats_vals, np.asarray(caption)
+    return current_feats_segments, current_caption.tolist()
 
   def inference(self, encoder_inputs, feed_previous=False):
-    cell = GRUCell(self._config.cell_state_size) #, self._config.cell_input_size)
 
-    bucket_decoder_inputs_placeholders = []
-    bucket_output = []
-    for bucket in self._config.buckets:
-      decoder_inputs_placeholders = bucket * tf.placeholder(tf.int32, [self._config.embed_size])
-      bucket_decoder_inputs_placeholders.append(decoder_inputs_placeholders)
+    decoder_inputs_placeholders = self._longest_caption * tf.placeholder(tf.int32, [self._config.dim_hidden])
+    encoder_inputs = np.asarray(encoder_inputs) # list - train_segments long - of inputs of size dim_video
+    encoder_inputs = tf.convert_to_tensor(encoder_inputs) # shape = [train_segments, dim_video]
 
-      output, _ = embedding_attention_seq2seq(encoder_inputs, decoder_inputs_placeholders, cell,
-                                           self._config.num_encoder_symbols, self._config.num_decoder_symbols,
-                                           feed_previous=feed_previous)
-      bucket_output.append(output)
+    image_emb = tf.nn.xw_plus_b(encoder_inputs, self._encode_image_W, self._encode_image_b)
 
-    return bucket_output, bucket_decoder_inputs_placeholders
+    state = tf.zeros([self._lstm.state_size])
+
+    loss = 0.0
+    output_embed = []
+    for time_step in range(self._config.train_segments): ## Phase 1 => only read videos
+      if time_step > 0:
+        tf.get_variable_scope().reuse_variables()
+
+        output_image, state = self._lstm(image_emb[time_step,:], state)
+
+    tf.get_variable_scope().reuse_variables()
+    current_embed = tf.nn.embedding_lookup(self._W_emb, 0) # start token
+    output, state = self._lstm(current_embed, state)
+    output_embed.append[output_embed]
+
+    for time_step in range(self._longest_caption): ## Phase 2 => only generate captions
+      tf.get_variable_scope().reuse_variables()
+
+      current_embed = tf.nn.embedding_lookup(self._W_emb, decoder_inputs_placeholders[time_step])
+      output, state = self._lstm(current_embed, state)
+      logit_words = tf.nn.xw_plus_b(output2, self.embed_word_W, self.embed_word_b)
+      output_embed.append[output_embed]
+
+    return output, decoder_inputs_placeholders
 
 
   # def loss(self, logits):

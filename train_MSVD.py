@@ -6,6 +6,8 @@ from model_UCF101 import Action_Recognizer
 from model_MSVD import Video_Caption_Generator
 from utils import load_pkl
 from video_config import ActionConfig, CaptionConfig
+import time
+from datetime import datetime
 
 def create_model(sess, saver, config_caption):
   """Create translation model and initialize or load parameters in session."""
@@ -50,19 +52,46 @@ def train(config_action, config_caption):
 
     model = create_model(sess, saver, config_caption)
 
-    train_data, _ = model.get_video_data()
-    word_to_index, index_to_word, bias_init_vector = model.get_caption_dicts(train_data)
-
     # Calculate predictions.
-    bucket_output, bucket_captions_placeholders = model.inference(segments)
-
+    output, caption_placeholder = model.inference(segments)
+    # tf_loss, tf_video, tf_video_mask, tf_caption, tf_caption_mask, tf_probs = model.build_model()
     graph_def = sess.graph.as_graph_def(add_shapes=True)
     summary_writer = tf.train.SummaryWriter(config_caption.train_dir,
                                           graph_def=graph_def)
 
     # Read data into buckets and compute their sizes.
     for step in xrange(config_caption.max_steps):
-      feat_maps_batch, labels = model.get_batch()
+      feats_segments, caption = model.get_example()
+      input_feed = {i: d for i, d in zip(segment_placeholders, feats_segments)}
+      input_feed.update({i: d for i, d in zip(caption_placeholder, caption)})
+
+      print ("epoch %d" % step)
+
+      start_time = time.time()
+
+      _, loss_value = sess.run([train_op, loss], feed_dict=dict)
+      duration = time.time() - start_time
+
+      assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+
+      # if step % 10 == 0:
+      num_examples_per_step = config.batch_size_train
+      examples_per_sec = num_examples_per_step / duration
+      sec_per_batch = float(duration)
+
+      format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+                    'sec/batch)')
+      print (format_str % (datetime.now(), step, loss_value,
+                           examples_per_sec, sec_per_batch))
+
+      # if step % 100 == 0:
+      summary_str = sess.run(summary_op, feed_dict=dict)
+      summary_writer.add_summary(summary_str, step)
+
+      # Save the model checkpoint periodically.
+      # if step % 1000 == 0 or (step + 1) == config.max_steps:
+      checkpoint_path = os.path.join(config.train_dir, 'model.ckpt')
+      saver.save(sess, checkpoint_path, global_step=step)
 
 def main(_):
   config_action = ActionConfig()
