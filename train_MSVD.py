@@ -8,8 +8,10 @@ from utils import load_pkl
 from video_config import ActionConfig, CaptionConfig
 import time
 from datetime import datetime
+import math
+import sys
 
-def create_model(sess, saver, config_caption):
+def create_model(sess, global_step, saver, config_caption):
   """Create translation model and initialize or load parameters in session."""
   model = Video_Caption_Generator(config_caption)
 
@@ -18,6 +20,7 @@ def create_model(sess, saver, config_caption):
     if ckpt and tf.gfile.Exists(ckpt.model_checkpoint_path):
       print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
       saver.restore(sess, ckpt.model_checkpoint_path)
+      global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
     else:
       print("Created model with fresh parameters.")
       sess.run(tf.initialize_all_variables())
@@ -49,16 +52,25 @@ def train(config_action, config_caption):
   with tf.Session() as sess:
     # Create a saver.
     saver = tf.train.Saver()
+    global_step = tf.Variable(0, trainable=False)
 
-    model = create_model(sess, saver, config_caption)
+    print("Creating model...")
+    model = create_model(sess, global_step, saver, config_caption)
 
     # Calculate predictions.
-    output, caption_placeholder = model.inference(segments)
-    # tf_loss, tf_video, tf_video_mask, tf_caption, tf_caption_mask, tf_probs = model.build_model()
+    probs, caption_placeholder = model.inference_loss(segments)
+    loss = model.loss(probs, caption_placeholder)
+
+    train_op = model.train(loss, global_step)
+
+    # Build the summary operation based on the TF collection of Summaries.
+    summary_op = tf.merge_all_summaries()
+
     graph_def = sess.graph.as_graph_def(add_shapes=True)
     summary_writer = tf.train.SummaryWriter(config_caption.train_dir,
                                           graph_def=graph_def)
 
+    previous_losses = []
     # Read data into buckets and compute their sizes.
     for step in xrange(config_caption.max_steps):
       feats_segments, caption = model.get_example()
@@ -74,15 +86,20 @@ def train(config_action, config_caption):
 
       assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
-      # if step % 10 == 0:
-      num_examples_per_step = config.batch_size_train
-      examples_per_sec = num_examples_per_step / duration
-      sec_per_batch = float(duration)
 
-      format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
-                    'sec/batch)')
-      print (format_str % (datetime.now(), step, loss_value,
-                           examples_per_sec, sec_per_batch))
+      # if step % 10 == 0:
+      # Print statistics for the previous epoch.
+      perplexity = math.exp(loss) if loss < 300 else float('inf')
+      format_str = ('%s: step %d, loss = %.2f, perplexity = %.2f')
+      print (format_str % (datetime.now(), step, loss_value, perplexity))
+
+      # Decrease learning rate if no improvement was seen over last 3 times.
+      if len(previous_losses) > 2 and loss > max(previous_losses[-3:]):
+        sess.run(model.get_learning_rate_decay_op())
+      previous_losses.append(loss)
+      sys.stdout.flush()
+
+      # Run evals on development set and print their perplexity. -- TODO
 
       # if step % 100 == 0:
       summary_str = sess.run(summary_op, feed_dict=dict)
@@ -90,7 +107,7 @@ def train(config_action, config_caption):
 
       # Save the model checkpoint periodically.
       # if step % 1000 == 0 or (step + 1) == config.max_steps:
-      checkpoint_path = os.path.join(config.train_dir, 'model.ckpt')
+      checkpoint_path = os.path.join(config_caption.train_dir, 'model.ckpt')
       saver.save(sess, checkpoint_path, global_step=step)
 
 def main(_):

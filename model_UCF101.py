@@ -233,7 +233,8 @@ class Action_Recognizer():
 
     # Compute gradients
     with tf.control_dependencies([loss_averages_op]):
-      opt = tf.train.GradientDescentOptimizer(self._config.learning_rate)
+      # opt = tf.train.GradientDescentOptimizer(self._config.learning_rate)
+      opt = tf.train.AdamOptimizer(self._config.learning_rate)
       # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
       grads_and_vars = opt.compute_gradients(total_loss)
 

@@ -145,10 +145,10 @@ class CaptionConfig(object):
   max_steps = 1000
 
   #Model's learning rate
-  learning_rate = 0.001
+  learning_rate = 0.5
 
   #Model's learning rate decay factor
-  learning_rate_decay_factor = 0.6
+  learning_rate_decay_factor = 0.99
 
   #Dropout ration for the last layer of the classifiers
   keep_prob = 0.7

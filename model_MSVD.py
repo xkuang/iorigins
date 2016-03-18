@@ -35,6 +35,9 @@ class Video_Caption_Generator():
                                     name='embed_word_W')
     self._embed_word_b = tf.get_variable(tf.zeros([self._nr_words]), name='embed_word_b')
 
+    self.learning_rate_decay_op = self.learning_rate.assign(
+        self.learning_rate * self._config.learning_rate_decay_factor)
+
   def shuffle_train_data(self, train_data):
     index = list(train_data.index)
     np.random.shuffle(index)
@@ -137,7 +140,7 @@ class Video_Caption_Generator():
 
     return current_feats_segments, current_caption.tolist()
 
-  def inference(self, encoder_inputs, feed_previous=False):
+  def inference_loss(self, encoder_inputs, feed_previous=False):
 
     decoder_inputs_placeholders = self._longest_caption * tf.placeholder(tf.int32, [self._config.dim_hidden])
     encoder_inputs = np.asarray(encoder_inputs) # list - train_segments long - of inputs of size dim_video
@@ -147,8 +150,9 @@ class Video_Caption_Generator():
 
     state = tf.zeros([self._lstm.state_size])
 
-    loss = 0.0
-    output_embed = []
+    # loss = 0.0
+    probs = []
+
     for time_step in range(self._config.train_segments): ## Phase 1 => only read videos
       if time_step > 0:
         tf.get_variable_scope().reuse_variables()
@@ -158,27 +162,74 @@ class Video_Caption_Generator():
     tf.get_variable_scope().reuse_variables()
     current_embed = tf.nn.embedding_lookup(self._W_emb, 0) # start token
     output, state = self._lstm(current_embed, state)
-    output_embed.append[output_embed]
 
-    for time_step in range(self._longest_caption): ## Phase 2 => only generate captions
+
+    for time_step in range(self._longest_caption + 1): ## Phase 2 => only generate captions
       tf.get_variable_scope().reuse_variables()
 
-      current_embed = tf.nn.embedding_lookup(self._W_emb, decoder_inputs_placeholders[time_step])
+      if time_step == 0:
+        current_embed = tf.nn.embedding_lookup(self._W_emb, 0) # start token
+        # label = 0;
+      else:
+        current_embed = tf.nn.embedding_lookup(self._W_emb, decoder_inputs_placeholders[time_step])
+        # label = decoder_inputs_placeholders[time_step]
+
+
       output, state = self._lstm(current_embed, state)
-      logit_words = tf.nn.xw_plus_b(output2, self.embed_word_W, self.embed_word_b)
-      output_embed.append[output_embed]
+      logit_words = tf.nn.xw_plus_b(output, self.embed_word_W, self.embed_word_b)
+      probs.append(logit_words)
 
-    return output, decoder_inputs_placeholders
+      # cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logit_words, label)
+      # current_loss = tf.reduce_sum(cross_entropy)
+      # loss += current_loss
 
-
-  # def loss(self, logits):
-
-
-
-  # def train(self, total_loss, global_step):
+    return probs, decoder_inputs_placeholders
 
 
+  def loss(self, logits, labels_placeholder):
 
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+      logits, labels_placeholder, name='cross_entropy_per_example')
+
+    cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+    tf.add_to_collection('losses', cross_entropy_mean)
+
+    # The total loss is defined as the cross entropy loss plus all of the weight
+    # decay terms (L2 loss).
+    total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+
+    return total_loss
+
+
+  def train(self, total_loss, global_step):
+
+    tf.scalar_summary('learning_rate', self._config.learning_rate)
+
+    # Generate moving averages of all losses and associated summaries.
+    loss_averages_op = self.add_loss_summaries(total_loss)
+
+    # Compute gradients
+    with tf.control_dependencies([loss_averages_op]):
+      # opt = tf.train.GradientDescentOptimizer(self._config.learning_rate)
+      opt = tf.train.AdamOptimizer(self._config.learning_rate)
+      # opt = tf.train.AdamOptimizer(conv_config.INITIAL_LEARNING_RATE, beta1=0.9, beta2=0.999, epsilon=1e-08)
+      grads_and_vars = opt.compute_gradients(total_loss)
+
+    # Apply gradients
+    apply_gradients_op = opt.apply_gradients(grads_and_vars, global_step=global_step)
+
+    self.add_histograms(grads_and_vars)
+
+    variables_averages_op = self.add_moving_averages_to_all(global_step)
+
+    with tf.control_dependencies([apply_gradients_op, variables_averages_op]):
+      train_op = tf.no_op(name='train')
+
+    return train_op
+
+
+  def get_learning_rate_decay_op(self):
+    return self.learning_rate_decay_op
 
   def variable_with_weight_decay(self, name, shape, stddev, wd):
     """Helper to create an initialized Variable with weight decay.
